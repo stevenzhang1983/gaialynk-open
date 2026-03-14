@@ -213,3 +213,12 @@ export const verifyReceiptAsync = async (receipt: Receipt): Promise<boolean> => 
 
   return timingSafeEqual(expectedBuffer, actualBuffer);
 };
+
+export const countReceiptsAsync = async (): Promise<number> => {
+  if (!isPostgresEnabled()) {
+    return receipts.length;
+  }
+
+  const rows = await query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM receipts`);
+  return Number(rows[0]?.count ?? "0");
+};

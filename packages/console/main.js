@@ -40,7 +40,8 @@ byId("bootstrapBtn").addEventListener("click", async () => {
       name: agentName,
       description: "console-created agent",
       agent_type: "execution",
-      source_url: "https://console-agent.example.com",
+      source_url: "mock://console-agent",
+      source_origin: "self_hosted",
       capabilities: [{ name: "run_task", risk_level: risk }],
     }),
   });
@@ -98,19 +99,65 @@ byId("confirmBtn").addEventListener("click", async () => {
 });
 
 byId("refreshBtn").addEventListener("click", async () => {
+  const conversationId = byId("conversationId").value;
   const audit = await fetchJson("/api/v1/audit-events");
   const metrics = await fetchJson("/api/v1/metrics");
+  const agents = await fetchJson("/api/v1/agents");
+  const pendingInvocations = await fetchJson(
+    `/api/v1/invocations?status=pending_confirmation${conversationId ? `&conversation_id=${conversationId}` : ""}`,
+  );
   const auditList = byId("auditList");
+  const agentList = byId("agentList");
+  const pendingInvocationList = byId("pendingInvocationList");
+  const northStarOutput = byId("northStarOutput");
   const metricsOutput = byId("metricsOutput");
 
   auditList.innerHTML = "";
   if (Array.isArray(audit.data.data)) {
     for (const event of audit.data.data) {
       const li = document.createElement("li");
-      li.textContent = `${event.event_type} (${event.actor_type}:${event.actor_id})`;
+      const risk = event.trust_decision?.risk_level ?? "-";
+      const decision = event.trust_decision?.decision ?? "-";
+      li.textContent = `${event.event_type} [risk:${risk} decision:${decision}] (${event.actor_type}:${event.actor_id})`;
       auditList.appendChild(li);
     }
   }
+
+  agentList.innerHTML = "";
+  if (Array.isArray(agents.data.data)) {
+    for (const agent of agents.data.data) {
+      const capability = Array.isArray(agent.capabilities) ? agent.capabilities[0] : null;
+      const risk = capability?.risk_level ?? "-";
+      const li = document.createElement("li");
+      li.textContent = `${agent.name} [${agent.source_origin ?? "official"}] [risk:${risk}] (${agent.source_url})`;
+      agentList.appendChild(li);
+    }
+  }
+
+  pendingInvocationList.innerHTML = "";
+  if (Array.isArray(pendingInvocations.data.data)) {
+    for (const invocation of pendingInvocations.data.data) {
+      const li = document.createElement("li");
+      li.textContent = `${invocation.id} [conversation:${invocation.conversation_id}] [agent:${invocation.agent_id}]`;
+      pendingInvocationList.appendChild(li);
+    }
+  }
+
+  const northStar = metrics.data.data?.weekly_trusted_invocations ?? 0;
+  northStarOutput.textContent = JSON.stringify(
+    {
+      weekly_trusted_invocations: northStar,
+      high_risk_interception_ratio: metrics.data.data?.high_risk_interception_ratio ?? 0,
+      key_receipt_coverage_ratio: metrics.data.data?.key_receipt_coverage_ratio ?? 0,
+      audit_event_coverage_ratio: metrics.data.data?.audit_event_coverage_ratio ?? 0,
+      weekly_active_conversations: metrics.data.data?.weekly_active_conversations ?? 0,
+      first_session_success_rate: metrics.data.data?.first_session_success_rate ?? 0,
+      connected_nodes_total: metrics.data.data?.connected_nodes_total ?? 0,
+      go_no_go: metrics.data.data?.go_no_go ?? { decision: "hold", reasons: ["metrics_unavailable"] },
+    },
+    null,
+    2,
+  );
 
   metricsOutput.textContent = JSON.stringify(metrics.data.data ?? {}, null, 2);
 });

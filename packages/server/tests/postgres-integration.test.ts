@@ -34,7 +34,7 @@ integrationDescribe("postgres integration", () => {
         name: "PG Low Agent",
         description: "low risk agent",
         agent_type: "execution",
-        source_url: "https://example.com/pg-low",
+        source_url: "mock://pg-low",
         capabilities: [{ name: "summarize", risk_level: "low" }],
       }),
     });
@@ -74,7 +74,7 @@ integrationDescribe("postgres integration", () => {
         name: "PG High Agent",
         description: "high risk agent",
         agent_type: "execution",
-        source_url: "https://example.com/pg-high",
+        source_url: "mock://pg-high",
         capabilities: [{ name: "delete_data", risk_level: "high" }],
       }),
     });
@@ -108,5 +108,13 @@ integrationDescribe("postgres integration", () => {
     expect(receiptRes.status).toBe(200);
     const receiptBody = await receiptRes.json();
     expect(receiptBody.meta.is_valid).toBe(true);
+
+    const metricsRes = await app.request("/api/v1/metrics");
+    expect(metricsRes.status).toBe(200);
+    const metricsBody = await metricsRes.json();
+    expect(metricsBody.data.go_no_go.decision).toBe("go");
+    expect(metricsBody.data.high_risk_interception_ratio).toBeGreaterThanOrEqual(0.9);
+    expect(metricsBody.data.key_receipt_coverage_ratio).toBeGreaterThanOrEqual(0.95);
+    expect(metricsBody.data.audit_event_coverage_ratio).toBeGreaterThanOrEqual(0.95);
   });
 });
