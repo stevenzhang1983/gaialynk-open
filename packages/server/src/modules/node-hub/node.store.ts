@@ -181,3 +181,42 @@ export const listNodesAsync = async (): Promise<NodeRecord[]> => {
     created_at: row.created_at,
   }));
 };
+
+export const getNodeByNodeIdAsync = async (nodeId: string): Promise<NodeRecord | null> => {
+  if (!isPostgresEnabled()) {
+    return nodesByNodeId.get(nodeId) ?? null;
+  }
+
+  const rows = await query<{
+    id: string;
+    node_id: string;
+    name: string;
+    endpoint: string;
+    status: "online" | "offline" | "degraded";
+    capabilities: Record<string, unknown> | string;
+    last_heartbeat: string;
+    created_at: string;
+  }>(
+    `SELECT id, node_id, name, endpoint, status, capabilities, last_heartbeat::text, created_at::text
+     FROM nodes
+     WHERE node_id = $1
+     LIMIT 1`,
+    [nodeId],
+  );
+
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    node_id: row.node_id,
+    name: row.name,
+    endpoint: row.endpoint,
+    status: row.status,
+    capabilities: typeof row.capabilities === "string" ? (JSON.parse(row.capabilities) as Record<string, unknown>) : row.capabilities,
+    last_heartbeat: row.last_heartbeat,
+    created_at: row.created_at,
+  };
+};

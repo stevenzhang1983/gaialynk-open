@@ -17,7 +17,7 @@ async function bootstrap(app: ReturnType<typeof createApp>) {
       name: "Phase0 Agent",
       description: "Agent for phase0",
       agent_type: "logical",
-      source_url: "https://example.com/phase0-agent",
+      source_url: "mock://phase0-agent",
       capabilities: [{ name: "summarize", risk_level: "low" }],
     }),
   });
@@ -75,7 +75,7 @@ describe("Phase0 API completeness", () => {
         name: "Critical Agent",
         description: "Dangerous agent",
         agent_type: "execution",
-        source_url: "https://example.com/critical-agent",
+        source_url: "mock://critical-agent",
         capabilities: [{ name: "danger", risk_level: "critical" }],
       }),
     });
@@ -123,7 +123,7 @@ describe("Phase0 API completeness", () => {
         name: "High Agent",
         description: "High risk agent",
         agent_type: "execution",
-        source_url: "https://example.com/high-agent",
+        source_url: "mock://high-agent",
         capabilities: [{ name: "high-op", risk_level: "high" }],
       }),
     });
@@ -194,5 +194,89 @@ describe("Phase0 API completeness", () => {
 
     expect(metricsBody.data).toHaveProperty("invocation_total");
     expect(metricsBody.data).toHaveProperty("audit_events_total");
+    expect(metricsBody.data).toHaveProperty("weekly_trusted_invocations");
+    expect(metricsBody.data).toHaveProperty("high_risk_interception_ratio");
+    expect(metricsBody.data).toHaveProperty("key_receipt_coverage_ratio");
+    expect(metricsBody.data).toHaveProperty("audit_event_coverage_ratio");
+    expect(metricsBody.data).toHaveProperty("weekly_active_conversations");
+    expect(metricsBody.data).toHaveProperty("first_session_success_rate");
+    expect(metricsBody.data).toHaveProperty("connected_nodes_total");
+    expect(metricsBody.data).toHaveProperty("go_no_go");
+    expect(metricsBody.data.go_no_go).toHaveProperty("decision");
+    expect(metricsBody.data.go_no_go).toHaveProperty("reasons");
+  });
+
+  it("supports multi-agent targeted invocation in one message", async () => {
+    const app = createApp();
+
+    const convRes = await app.request("/api/v1/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Multi Agent Conversation" }),
+    });
+    const convBody = await convRes.json();
+    const conversationId = convBody.data.id as string;
+
+    const agentARes = await app.request("/api/v1/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Agent A",
+        description: "First agent",
+        agent_type: "execution",
+        source_url: "mock://agent-a",
+        capabilities: [{ name: "task-a", risk_level: "low" }],
+      }),
+    });
+    const agentABody = await agentARes.json();
+    const agentAId = agentABody.data.id as string;
+
+    const agentBRes = await app.request("/api/v1/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "Agent B",
+        description: "Second agent",
+        agent_type: "execution",
+        source_url: "mock://agent-b",
+        capabilities: [{ name: "task-b", risk_level: "low" }],
+      }),
+    });
+    const agentBBody = await agentBRes.json();
+    const agentBId = agentBBody.data.id as string;
+
+    await app.request(`/api/v1/conversations/${conversationId}/agents`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agent_id: agentAId }),
+    });
+    await app.request(`/api/v1/conversations/${conversationId}/agents`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agent_id: agentBId }),
+    });
+
+    const sendRes = await app.request(`/api/v1/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sender_id: "multi-user",
+        text: "run for both agents",
+        target_agent_ids: [agentAId, agentBId],
+      }),
+    });
+    expect(sendRes.status).toBe(201);
+    const sendBody = await sendRes.json();
+    expect(sendBody.meta.completed_receipts).toHaveLength(2);
+
+    const detailRes = await app.request(`/api/v1/conversations/${conversationId}`);
+    expect(detailRes.status).toBe(200);
+    const detailBody = await detailRes.json();
+    expect(detailBody.data.messages).toHaveLength(3);
+    const agentSenderIds = detailBody.data.messages
+      .filter((message: { sender_type: string }) => message.sender_type === "agent")
+      .map((message: { sender_id: string }) => message.sender_id);
+    expect(agentSenderIds).toContain(agentAId);
+    expect(agentSenderIds).toContain(agentBId);
   });
 });

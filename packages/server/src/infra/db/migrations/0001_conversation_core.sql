@@ -37,8 +37,14 @@ CREATE TABLE IF NOT EXISTS agents (
   agent_type VARCHAR(16) NOT NULL,
   source_url TEXT NOT NULL,
   capabilities JSONB NOT NULL,
+  source_origin VARCHAR(32) NOT NULL DEFAULT 'official',
+  node_id UUID,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS agents_node_id_source_url_idx
+  ON agents(node_id, source_url);
 
 CREATE TABLE IF NOT EXISTS invocations (
   id UUID PRIMARY KEY,

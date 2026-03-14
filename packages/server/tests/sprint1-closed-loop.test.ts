@@ -23,7 +23,7 @@ describe("Sprint1 minimal closed loop", () => {
         name: "Summarizer Agent",
         description: "Summarize user content",
         agent_type: "logical",
-        source_url: "https://example.com/agent",
+        source_url: "mock://sprint1-agent",
         capabilities: [{ name: "summarize", risk_level: "low" }],
       }),
     });

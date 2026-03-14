@@ -7,19 +7,25 @@ import {
   createConversationAsync,
   getConversationDetailAsync,
   listConversations,
+  type Message,
   resetConversationStore,
 } from "./modules/conversation/conversation.store";
+import type { Agent } from "./modules/directory/agent.store";
 import {
   getAgentByIdAsync,
   listAgentsAsync,
   registerAgentAsync,
   resetAgentStore,
+  upsertAgentFromNodeAsync,
 } from "./modules/directory/agent.store";
 import { requestAgent } from "./modules/gateway/a2a.gateway";
 import {
+  claimInvocationForProcessingAsync,
   createPendingInvocationAsync,
   getInvocationByIdAsync,
+  listInvocationsAsync,
   markInvocationCompletedAsync,
+  rollbackInvocationProcessingAsync,
   resetInvocationStore,
 } from "./modules/gateway/invocation.store";
 import {
@@ -36,6 +42,7 @@ import {
 import { getPhase0Metrics } from "./modules/metrics/metrics.service";
 import {
   heartbeatNodeAsync,
+  getNodeByNodeIdAsync,
   listNodesAsync,
   registerNodeAsync,
   resetNodeStore,
@@ -57,6 +64,9 @@ const registerAgentSchema = z.object({
       risk_level: z.enum(["low", "medium", "high", "critical"]),
     }),
   ),
+  source_origin: z.enum(["official", "self_hosted", "connected_node", "vendor"]).optional(),
+  node_id: z.string().uuid().optional(),
+  status: z.enum(["active", "deprecated", "pending_review"]).optional(),
 });
 
 const joinAgentSchema = z.object({
@@ -66,6 +76,7 @@ const joinAgentSchema = z.object({
 const sendMessageSchema = z.object({
   sender_id: z.string().min(1),
   text: z.string().min(1),
+  target_agent_ids: z.array(z.string().min(1)).optional(),
 });
 
 const confirmInvocationSchema = z.object({
@@ -80,6 +91,37 @@ const registerNodeSchema = z.object({
 
 const heartbeatNodeSchema = z.object({
   node_id: z.string().min(1),
+});
+
+const toDecisionEventType = (
+  decision: "allow" | "allow_limited" | "deny" | "need_confirmation",
+): string => {
+  if (decision === "allow") {
+    return "invocation.allowed";
+  }
+  if (decision === "deny") {
+    return "invocation.denied";
+  }
+  return "invocation.need_confirmation";
+};
+
+const syncNodeDirectorySchema = z.object({
+  node_id: z.string().uuid(),
+  agents: z.array(
+    z.object({
+      name: z.string().min(1).max(255),
+      description: z.string().min(1),
+      agent_type: z.enum(["logical", "execution"]),
+      source_url: z.url(),
+      capabilities: z.array(
+        z.object({
+          name: z.string().min(1),
+          risk_level: z.enum(["low", "medium", "high", "critical"]),
+        }),
+      ),
+      status: z.enum(["active", "deprecated", "pending_review"]).optional(),
+    }),
+  ),
 });
 
 const resetAllStores = (): void => {
@@ -187,13 +229,212 @@ export const createApp = (): Hono => {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
 
-    const firstAgent = detail.participants.find((participant) => participant.participant_type === "agent");
+    const joinedAgentIds = detail.participants
+      .filter((participant) => participant.participant_type === "agent")
+      .map((participant) => participant.participant_id);
+    const firstAgentId = joinedAgentIds[0];
 
-    if (!firstAgent) {
+    if (!firstAgentId) {
       return c.json({ data: userMessage }, 201);
     }
 
-    const agent = await getAgentByIdAsync(firstAgent.participant_id);
+    if (payload.target_agent_ids && payload.target_agent_ids.length > 0) {
+      const targetIds = [...new Set(payload.target_agent_ids)];
+      const invalidAgentId = targetIds.find((agentId) => !joinedAgentIds.includes(agentId));
+      if (invalidAgentId) {
+        return c.json(
+          {
+            error: {
+              code: "agent_not_in_conversation",
+              message: "Target agent is not part of this conversation",
+              details: { agent_id: invalidAgentId },
+            },
+          },
+          400,
+        );
+      }
+
+      const pendingInvocations: Array<{ agent_id: string; invocation_id: string }> = [];
+      const completedReceipts: Array<{ agent_id: string; receipt_id: string }> = [];
+      const deniedAgents: Array<{ agent_id: string; reason_codes: string[] }> = [];
+      const failedAgents: Array<{ agent_id: string; reason: string }> = [];
+
+      for (const targetAgentId of targetIds) {
+        const perAgentCorrelationId = randomUUID();
+        const agent = await getAgentByIdAsync(targetAgentId);
+        if (!agent) {
+          return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+        }
+
+        const trustDecision = evaluateTrustDecision({
+          agent,
+          capability: agent.capabilities[0],
+          context: {
+            conversationId,
+            actorId: payload.sender_id,
+          },
+        });
+
+        const decisionEventType = toDecisionEventType(trustDecision.decision);
+
+        await emitAuditEventAsync({
+          eventType: decisionEventType,
+          conversationId,
+          agentId: agent.id,
+          actorType: "user",
+          actorId: payload.sender_id,
+          payload: {
+            message_id: userMessage.id,
+            text: payload.text,
+          },
+          trustDecision,
+          correlationId: perAgentCorrelationId,
+        });
+
+        if (trustDecision.decision === "need_confirmation") {
+          const pendingInvocation = await createPendingInvocationAsync({
+            conversationId,
+            agentId: agent.id,
+            requesterId: payload.sender_id,
+            userText: payload.text,
+          });
+          await emitAuditEventAsync({
+            eventType: "invocation.pending_confirmation",
+            conversationId,
+            agentId: agent.id,
+            actorType: "user",
+            actorId: payload.sender_id,
+            payload: {
+              invocation_id: pendingInvocation.id,
+              reason_codes: trustDecision.reason_codes,
+            },
+            trustDecision,
+            correlationId: perAgentCorrelationId,
+          });
+          pendingInvocations.push({ agent_id: agent.id, invocation_id: pendingInvocation.id });
+          continue;
+        }
+
+        if (trustDecision.decision === "deny") {
+          deniedAgents.push({ agent_id: agent.id, reason_codes: trustDecision.reason_codes });
+          continue;
+        }
+
+        let agentMessage: Message | null = null;
+        try {
+          const a2aResponse = await requestAgent({
+            conversationId,
+            agent,
+            userText: payload.text,
+          });
+          agentMessage = await appendMessageAsync({
+            conversationId,
+            senderType: "agent",
+            senderId: agent.id,
+            text: a2aResponse.text,
+          });
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : "unknown_error";
+          await emitAuditEventAsync({
+            eventType: "invocation.failed",
+            conversationId,
+            agentId: agent.id,
+            actorType: "system",
+            actorId: "system",
+            payload: { reason },
+            trustDecision,
+            correlationId: perAgentCorrelationId,
+          });
+          failedAgents.push({ agent_id: agent.id, reason });
+          continue;
+        }
+
+        if (!agentMessage) {
+          continue;
+        }
+
+        const completedEvent = await emitAuditEventAsync({
+          eventType: "invocation.completed",
+          conversationId,
+          agentId: agent.id,
+          actorType: "agent",
+          actorId: agent.id,
+          payload: {
+            message_id: agentMessage.id,
+          },
+          trustDecision,
+          correlationId: perAgentCorrelationId,
+        });
+
+        const receipt = await issueReceiptAsync({
+          auditEventId: completedEvent.id,
+          conversationId,
+          receiptType: "invocation_completed",
+          payload: {
+            conversation_id: conversationId,
+            user_message_id: userMessage.id,
+            agent_message_id: agentMessage.id,
+            agent_id: agent.id,
+          },
+        });
+        completedReceipts.push({ agent_id: agent.id, receipt_id: receipt.id });
+      }
+
+      if (pendingInvocations.length > 0) {
+        return c.json(
+          {
+            data: userMessage,
+            meta: {
+              pending_invocations: pendingInvocations,
+              completed_receipts: completedReceipts,
+              denied_agents: deniedAgents,
+              failed_agents: failedAgents,
+            },
+          },
+          202,
+        );
+      }
+
+      if (completedReceipts.length > 0) {
+        return c.json(
+          {
+            data: userMessage,
+            meta: {
+              completed_receipts: completedReceipts,
+              denied_agents: deniedAgents,
+              failed_agents: failedAgents,
+            },
+          },
+          201,
+        );
+      }
+
+      if (failedAgents.length > 0 && deniedAgents.length === 0) {
+        return c.json(
+          {
+            error: {
+              code: "a2a_invocation_failed",
+              message: "A2A invocation failed",
+              details: { failed_agents: failedAgents },
+            },
+          },
+          502,
+        );
+      }
+
+      return c.json(
+        {
+          error: {
+            code: "invocation_denied",
+            message: "Invocation denied by trust policy",
+            details: { denied_agents: deniedAgents, failed_agents: failedAgents },
+          },
+        },
+        403,
+      );
+    }
+
+    const agent = await getAgentByIdAsync(firstAgentId);
 
     if (!agent) {
       return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
@@ -208,12 +449,7 @@ export const createApp = (): Hono => {
       },
     });
 
-    const decisionEventType =
-      trustDecision.decision === "allow"
-        ? "invocation.allowed"
-        : trustDecision.decision === "deny"
-          ? "invocation.denied"
-          : "invocation.need_confirmation";
+    const decisionEventType = toDecisionEventType(trustDecision.decision);
 
     await emitAuditEventAsync({
       eventType: decisionEventType,
@@ -276,18 +512,42 @@ export const createApp = (): Hono => {
       );
     }
 
-    const a2aResponse = await requestAgent({
-      conversationId,
-      agent,
-      userText: payload.text,
-    });
+    let agentMessage: Message | null = null;
+    try {
+      const a2aResponse = await requestAgent({
+        conversationId,
+        agent,
+        userText: payload.text,
+      });
 
-    const agentMessage = await appendMessageAsync({
-      conversationId,
-      senderType: "agent",
-      senderId: agent.id,
-      text: a2aResponse.text,
-    });
+      agentMessage = await appendMessageAsync({
+        conversationId,
+        senderType: "agent",
+        senderId: agent.id,
+        text: a2aResponse.text,
+      });
+    } catch (error) {
+      await emitAuditEventAsync({
+        eventType: "invocation.failed",
+        conversationId,
+        agentId: agent.id,
+        actorType: "system",
+        actorId: "system",
+        payload: { reason: error instanceof Error ? error.message : "unknown_error" },
+        trustDecision,
+        correlationId,
+      });
+
+      return c.json(
+        {
+          error: {
+            code: "a2a_invocation_failed",
+            message: "A2A invocation failed",
+          },
+        },
+        502,
+      );
+    }
 
     if (!agentMessage) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
@@ -342,6 +602,11 @@ export const createApp = (): Hono => {
       return c.json({ error: { code: "invocation_not_confirmable", message: "Invocation already processed" } }, 409);
     }
 
+    const claimedInvocation = await claimInvocationForProcessingAsync(invocationId);
+    if (!claimedInvocation) {
+      return c.json({ error: { code: "invocation_not_confirmable", message: "Invocation already processed" } }, 409);
+    }
+
     const agent = await getAgentByIdAsync(invocation.agent_id);
     if (!agent) {
       return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
@@ -359,24 +624,51 @@ export const createApp = (): Hono => {
       correlationId,
     });
 
-    const a2aResponse = await requestAgent({
-      conversationId: invocation.conversation_id,
-      agent,
-      userText: invocation.user_text,
-    });
+    let agentMessage: Message | null = null;
+    try {
+      const a2aResponse = await requestAgent({
+        conversationId: invocation.conversation_id,
+        agent,
+        userText: invocation.user_text,
+      });
 
-    const agentMessage = await appendMessageAsync({
-      conversationId: invocation.conversation_id,
-      senderType: "agent",
-      senderId: agent.id,
-      text: a2aResponse.text,
-    });
+      agentMessage = await appendMessageAsync({
+        conversationId: invocation.conversation_id,
+        senderType: "agent",
+        senderId: agent.id,
+        text: a2aResponse.text,
+      });
+    } catch (error) {
+      await emitAuditEventAsync({
+        eventType: "invocation.failed",
+        conversationId: claimedInvocation.conversation_id,
+        agentId: agent.id,
+        actorType: "system",
+        actorId: "system",
+        payload: { reason: error instanceof Error ? error.message : "unknown_error" },
+        correlationId,
+      });
+      await rollbackInvocationProcessingAsync(claimedInvocation.id);
+
+      return c.json(
+        {
+          error: {
+            code: "a2a_invocation_failed",
+            message: "A2A invocation failed",
+          },
+        },
+        502,
+      );
+    }
 
     if (!agentMessage) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
 
-    await markInvocationCompletedAsync(invocation.id);
+    const completedInvocation = await markInvocationCompletedAsync(claimedInvocation.id);
+    if (!completedInvocation) {
+      return c.json({ error: { code: "invocation_not_confirmable", message: "Invocation already processed" } }, 409);
+    }
 
     const completedEvent = await emitAuditEventAsync({
       eventType: "invocation.completed",
@@ -404,7 +696,7 @@ export const createApp = (): Hono => {
     return c.json(
       {
         data: {
-          invocation_id: invocation.id,
+          invocation_id: completedInvocation.id,
           status: "completed",
         },
         meta: {
@@ -413,6 +705,37 @@ export const createApp = (): Hono => {
       },
       200,
     );
+  });
+
+  app.get("/api/v1/invocations", async (c) => {
+    const statusRaw = c.req.query("status");
+    const conversationId = c.req.query("conversation_id");
+    if (
+      statusRaw &&
+      statusRaw !== "pending_confirmation" &&
+      statusRaw !== "completed"
+    ) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_status",
+            message: "Invalid status filter",
+            details: {
+              allowed: ["pending_confirmation", "completed"],
+            },
+          },
+        },
+        400,
+      );
+    }
+    const status =
+      statusRaw === "pending_confirmation" || statusRaw === "completed" ? statusRaw : undefined;
+
+    const invocations = await listInvocationsAsync({
+      status,
+      conversationId,
+    });
+    return c.json({ data: invocations }, 200);
   });
 
   app.get("/api/v1/invocations/:id", async (c) => {
@@ -485,6 +808,35 @@ export const createApp = (): Hono => {
       status: 200,
       headers: { "content-type": "application/json" },
     });
+  });
+
+  app.post("/api/v1/nodes/sync-directory", async (c) => {
+    const payload = syncNodeDirectorySchema.parse(await c.req.json());
+    const node = await getNodeByNodeIdAsync(payload.node_id);
+    if (!node) {
+      return c.json({ error: { code: "node_not_found", message: "Node not found" } }, 404);
+    }
+
+    const syncedAgents: Agent[] = [];
+    for (const agent of payload.agents) {
+      const synced = await upsertAgentFromNodeAsync(payload.node_id, {
+        ...agent,
+        source_origin: "connected_node",
+        node_id: payload.node_id,
+      });
+      syncedAgents.push(synced);
+    }
+
+    return c.json(
+      {
+        data: {
+          node_id: payload.node_id,
+          synced_count: syncedAgents.length,
+          agents: syncedAgents,
+        },
+      },
+      200,
+    );
   });
 
   app.get("/api/v1/metrics", async () => {

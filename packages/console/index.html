@@ -71,6 +71,17 @@
         margin: 0;
         padding-left: 18px;
       }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        border: 1px solid #30363d;
+        margin-right: 6px;
+      }
+      .muted {
+        color: #9da7b2;
+      }
       @media (max-width: 960px) {
         .row {
           grid-template-columns: 1fr;
@@ -115,14 +126,20 @@
           <label>Invocation ID</label>
           <input id="invocationId" />
           <button id="confirmBtn">确认执行</button>
+          <h3>待确认队列</h3>
+          <ul id="pendingInvocationList"></ul>
           <p class="mono" id="confirmResult"></p>
         </section>
 
         <section class="card">
           <h2>审计与指标</h2>
           <button id="refreshBtn">刷新审计与指标</button>
+          <h3>North Star</h3>
+          <p class="mono" id="northStarOutput"></p>
           <h3>Audit Events</h3>
           <ul id="auditList"></ul>
+          <h3>Agent Directory (来源/风险)</h3>
+          <ul id="agentList"></ul>
           <h3>Metrics</h3>
           <p class="mono" id="metricsOutput"></p>
         </section>

@@ -19,7 +19,7 @@ async function setupConversationWithAgent(riskLevel: "low" | "high") {
       name: "Risk Agent",
       description: "Handles risk-sensitive actions",
       agent_type: "execution",
-      source_url: "https://example.com/risk-agent",
+      source_url: "mock://risk-agent",
       capabilities: [{ name: "execute_action", risk_level: riskLevel }],
     }),
   });
@@ -79,12 +79,21 @@ describe("Sprint2 trust minimal closed loop", () => {
     const sendBody = await sendMessageResponse.json();
     expect(sendBody.meta.trust_decision.decision).toBe("need_confirmation");
     expect(sendBody.meta.invocation_id).toBeTypeOf("string");
+    const invocationId = sendBody.meta.invocation_id as string;
+
+    const queueBeforeConfirm = await app.request(
+      `/api/v1/invocations?status=pending_confirmation&conversation_id=${conversationId}`,
+    );
+    expect(queueBeforeConfirm.status).toBe(200);
+    const queueBeforeBody = await queueBeforeConfirm.json();
+    expect(queueBeforeBody.data).toHaveLength(1);
+    expect(queueBeforeBody.data[0].id).toBe(invocationId);
 
     const beforeConfirmDetailResponse = await app.request(`/api/v1/conversations/${conversationId}`);
     const beforeConfirmDetail = await beforeConfirmDetailResponse.json();
     expect(beforeConfirmDetail.data.messages).toHaveLength(1);
 
-    const confirmResponse = await app.request(`/api/v1/invocations/${sendBody.meta.invocation_id}/confirm`, {
+    const confirmResponse = await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ approver_id: "user-2" }),
@@ -103,5 +112,19 @@ describe("Sprint2 trust minimal closed loop", () => {
     expect(receiptResponse.status).toBe(200);
     const receiptBody = await receiptResponse.json();
     expect(receiptBody.meta.is_valid).toBe(true);
+
+    const queueAfterConfirm = await app.request(
+      `/api/v1/invocations?status=pending_confirmation&conversation_id=${conversationId}`,
+    );
+    expect(queueAfterConfirm.status).toBe(200);
+    const queueAfterBody = await queueAfterConfirm.json();
+    expect(queueAfterBody.data).toHaveLength(0);
+
+    const secondConfirm = await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approver_id: "user-2" }),
+    });
+    expect(secondConfirm.status).toBe(409);
   });
 });

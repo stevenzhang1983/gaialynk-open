@@ -17,7 +17,7 @@ async function seedLowAndHigh(app: ReturnType<typeof createApp>) {
       name: "Low Agent",
       description: "low",
       agent_type: "execution",
-      source_url: "https://example.com/low",
+      source_url: "mock://low-agent",
       capabilities: [{ name: "low", risk_level: "low" }],
     }),
   });
@@ -49,7 +49,7 @@ async function seedLowAndHigh(app: ReturnType<typeof createApp>) {
       name: "High Agent",
       description: "high",
       agent_type: "execution",
-      source_url: "https://example.com/high",
+      source_url: "mock://high-agent",
       capabilities: [{ name: "high", risk_level: "high" }],
     }),
   });
