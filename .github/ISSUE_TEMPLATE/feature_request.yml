@@ -1,0 +1,50 @@
+name: Feature Request
+description: Propose an improvement or new capability
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share the user problem first, then propose a solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What user pain point are we solving?
+      placeholder: Describe the problem and who is affected.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: What do you want to happen?
+      placeholder: Describe your preferred solution.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Other options you evaluated.
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Trust/Security Impact
+      options:
+        - none
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submit Checklist
+      options:
+        - label: I checked existing issues and did not find duplicates.
+          required: true
+        - label: I explained why this is valuable for GAIALYNK Phase 0 scope.
+          required: true

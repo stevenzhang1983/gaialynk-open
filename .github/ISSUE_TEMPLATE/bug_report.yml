@@ -1,0 +1,57 @@
+name: Bug Report
+description: Report a reproducible defect in GAIALYNK open-source scope
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please provide enough detail for reliable reproduction.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened and what did you expect?
+      placeholder: Describe the bug and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+      description: Step-by-step instructions to reproduce.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: Paste relevant logs, stack traces, or screenshots.
+      render: shell
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      options:
+        - server
+        - console
+        - trust / audit / receipt
+        - ci / workflow
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Node version, command used.
+      placeholder: |
+        OS:
+        Node:
+        Command:
+    validations:
+      required: true
