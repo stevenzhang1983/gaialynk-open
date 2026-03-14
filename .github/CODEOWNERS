@@ -1,0 +1,12 @@
+# Default reviewers for all repository changes
+* @stevenzhang1983
+
+# Core backend and trust path
+/packages/server/ @stevenzhang1983
+
+# Minimal console and docs visible in OSS repo
+/packages/console/ @stevenzhang1983
+/README.md @stevenzhang1983
+
+# CI and governance settings
+/.github/ @stevenzhang1983
