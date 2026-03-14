@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GAIALYNK Console (Phase 0)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, -apple-system, Segoe UI, sans-serif;
+        background: #0d1117;
+        color: #e6edf3;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 16px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+      h2 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      label {
+        display: block;
+        margin: 8px 0 4px;
+        font-size: 12px;
+        color: #9da7b2;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background: #0d1117;
+        color: #e6edf3;
+        padding: 8px 10px;
+      }
+      button {
+        margin-top: 10px;
+        cursor: pointer;
+        background: #1f6feb;
+        border-color: #1f6feb;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      @media (max-width: 960px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>GAIALYNK Phase 0 Console</h1>
+      <div class="row">
+        <section class="card">
+          <h2>创建会话 + 注册 Agent</h2>
+          <label>Server URL</label>
+          <input id="serverUrl" value="http://localhost:3000" />
+          <label>Conversation Title</label>
+          <input id="conversationTitle" value="Demo Conversation" />
+          <label>Agent Name</label>
+          <input id="agentName" value="Demo Agent" />
+          <label>Risk</label>
+          <select id="riskLevel">
+            <option value="low">low</option>
+            <option value="high">high</option>
+            <option value="critical">critical</option>
+          </select>
+          <button id="bootstrapBtn">初始化 Demo 数据</button>
+          <p class="mono" id="bootstrapResult"></p>
+        </section>
+
+        <section class="card">
+          <h2>发送消息 / 触发调用</h2>
+          <label>Conversation ID</label>
+          <input id="conversationId" />
+          <label>消息</label>
+          <textarea id="messageText">Please run the task</textarea>
+          <button id="sendBtn">发送消息</button>
+          <p class="mono" id="sendResult"></p>
+        </section>
+
+        <section class="card">
+          <h2>确认高风险调用</h2>
+          <label>Invocation ID</label>
+          <input id="invocationId" />
+          <button id="confirmBtn">确认执行</button>
+          <p class="mono" id="confirmResult"></p>
+        </section>
+
+        <section class="card">
+          <h2>审计与指标</h2>
+          <button id="refreshBtn">刷新审计与指标</button>
+          <h3>Audit Events</h3>
+          <ul id="auditList"></ul>
+          <h3>Metrics</h3>
+          <p class="mono" id="metricsOutput"></p>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
