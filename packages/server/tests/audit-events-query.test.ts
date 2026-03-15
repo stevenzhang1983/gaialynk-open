@@ -104,4 +104,26 @@ describe("audit-events query", () => {
     const secondBody = await secondPage.json();
     expect(secondBody.data.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("filters by actor_type and agent_id", async () => {
+    const app = createApp();
+    const { lowConversationId } = await seedLowAndHigh(app);
+
+    const detailRes = await app.request(`/api/v1/conversations/${lowConversationId}`);
+    const detailBody = await detailRes.json();
+    const firstParticipant = (detailBody.data.participants as Array<{ participant_id: string }>)[0];
+    if (!firstParticipant) {
+      throw new Error("expected at least one participant");
+    }
+    const lowAgentId = firstParticipant.participant_id;
+
+    const response = await app.request(`/api/v1/audit-events?actor_type=agent&agent_id=${lowAgentId}`);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    for (const event of body.data as Array<{ actor_type: string; agent_id?: string }>) {
+      expect(event.actor_type).toBe("agent");
+      expect(event.agent_id).toBe(lowAgentId);
+    }
+  });
 });

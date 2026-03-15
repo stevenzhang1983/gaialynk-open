@@ -1,4 +1,13 @@
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  createPrivateKey,
+  createPublicKey,
+  randomUUID,
+  sign,
+  timingSafeEqual,
+  verify,
+} from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
 
 export interface Receipt {
@@ -20,8 +29,10 @@ interface IssueReceiptInput {
   payload: Record<string, unknown>;
 }
 
-const RECEIPT_SECRET = "phase0-local-receipt-secret";
-const RECEIPT_SIGNER = "gaialynk-phase0";
+const RECEIPT_HMAC_SECRET = process.env.RECEIPT_HMAC_SECRET ?? "dev-insecure-receipt-secret";
+const RECEIPT_HMAC_SIGNER = "gaialynk-phase0-hmac";
+const RECEIPT_ED25519_SIGNER = "gaialynk-phase1-ed25519";
+const RECEIPT_ED25519_KID = process.env.RECEIPT_ED25519_KEY_ID ?? "phase1-default";
 const receipts: Receipt[] = [];
 const payloadByReceiptId = new Map<string, Record<string, unknown>>();
 
@@ -47,8 +58,104 @@ const hashPayload = (payload: Record<string, unknown>): string => {
   return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
 };
 
+const base64UrlEncode = (input: Buffer | string): string => {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+};
+
+const base64UrlDecode = (input: string): Buffer => {
+  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  return Buffer.from(padded, "base64");
+};
+
+const getEd25519PrivateKey = () => {
+  const pem = process.env.RECEIPT_ED25519_PRIVATE_KEY_PEM;
+  if (!pem) {
+    return null;
+  }
+  return createPrivateKey(pem.replace(/\\n/g, "\n"));
+};
+
+const getEd25519PublicKey = () => {
+  const pem = process.env.RECEIPT_ED25519_PUBLIC_KEY_PEM;
+  if (!pem) {
+    return null;
+  }
+  return createPublicKey(pem.replace(/\\n/g, "\n"));
+};
+
+const signEd25519Jws = (receipt: Receipt): string | null => {
+  const privateKey = getEd25519PrivateKey();
+  if (!privateKey) {
+    return null;
+  }
+
+  const header = {
+    alg: "EdDSA",
+    typ: "JOSE",
+    kid: RECEIPT_ED25519_KID,
+  };
+  const payload = {
+    payload_hash: receipt.payload_hash,
+    conversation_id: receipt.conversation_id,
+    audit_event_id: receipt.audit_event_id,
+    issued_at: receipt.issued_at,
+    prev_receipt_hash: receipt.prev_receipt_hash ?? null,
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = sign(null, Buffer.from(signingInput, "utf8"), privateKey);
+
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+};
+
 const signPayloadHash = (payloadHash: string): string => {
-  return createHmac("sha256", RECEIPT_SECRET).update(payloadHash).digest("hex");
+  return createHmac("sha256", RECEIPT_HMAC_SECRET).update(payloadHash).digest("hex");
+};
+
+const verifyEd25519Jws = (receipt: Receipt): boolean => {
+  const publicKey = getEd25519PublicKey();
+  if (!publicKey) {
+    return false;
+  }
+
+  const parts = receipt.signature.split(".");
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const encodedHeader = parts[0];
+  const encodedPayload = parts[1];
+  const encodedSignature = parts[2];
+  if (!encodedHeader || !encodedPayload || !encodedSignature) {
+    return false;
+  }
+  const payloadBuffer = base64UrlDecode(encodedPayload);
+  const payload = JSON.parse(payloadBuffer.toString("utf8")) as {
+    payload_hash?: string;
+    conversation_id?: string;
+    audit_event_id?: string;
+    issued_at?: string;
+  };
+
+  if (
+    payload.payload_hash !== receipt.payload_hash ||
+    payload.conversation_id !== receipt.conversation_id ||
+    payload.audit_event_id !== receipt.audit_event_id ||
+    payload.issued_at !== receipt.issued_at
+  ) {
+    return false;
+  }
+
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signatureBuffer = base64UrlDecode(encodedSignature);
+  return verify(null, Buffer.from(signingInput, "utf8"), publicKey, signatureBuffer);
 };
 
 export const issueReceipt = (input: IssueReceiptInput): Receipt => {
@@ -70,10 +177,16 @@ export const issueReceipt = (input: IssueReceiptInput): Receipt => {
     receipt_type: input.receiptType,
     payload_hash: payloadHash,
     signature,
-    signer: RECEIPT_SIGNER,
+    signer: RECEIPT_HMAC_SIGNER,
     issued_at: new Date().toISOString(),
     prev_receipt_hash: lastInConversation?.payload_hash,
   };
+
+  const jwsSignature = signEd25519Jws(receipt);
+  if (jwsSignature) {
+    receipt.signature = jwsSignature;
+    receipt.signer = `${RECEIPT_ED25519_SIGNER}:${RECEIPT_ED25519_KID}`;
+  }
 
   receipts.push(receipt);
   payloadByReceiptId.set(receipt.id, input.payload);
@@ -98,6 +211,10 @@ export const verifyReceipt = (receipt: Receipt): boolean => {
   const recomputedHash = hashPayload(payload);
   if (recomputedHash !== receipt.payload_hash) {
     return false;
+  }
+
+  if (receipt.signer.startsWith(RECEIPT_ED25519_SIGNER)) {
+    return verifyEd25519Jws(receipt);
   }
 
   const expectedSignature = signPayloadHash(receipt.payload_hash);
@@ -140,10 +257,16 @@ export const issueReceiptAsync = async (input: IssueReceiptInput): Promise<Recei
     receipt_type: input.receiptType,
     payload_hash: payloadHash,
     signature,
-    signer: RECEIPT_SIGNER,
+    signer: RECEIPT_HMAC_SIGNER,
     issued_at: new Date().toISOString(),
     prev_receipt_hash: previousRows[0]?.payload_hash,
   };
+
+  const jwsSignature = signEd25519Jws(receipt);
+  if (jwsSignature) {
+    receipt.signature = jwsSignature;
+    receipt.signer = `${RECEIPT_ED25519_SIGNER}:${RECEIPT_ED25519_KID}`;
+  }
 
   await query(
     `INSERT INTO receipts
@@ -201,6 +324,10 @@ export const verifyReceiptAsync = async (receipt: Receipt): Promise<boolean> => 
   const recomputedHash = hashPayload(payload);
   if (recomputedHash !== receipt.payload_hash) {
     return false;
+  }
+
+  if (receipt.signer.startsWith(RECEIPT_ED25519_SIGNER)) {
+    return verifyEd25519Jws(receipt);
   }
 
   const expectedSignature = signPayloadHash(receipt.payload_hash);

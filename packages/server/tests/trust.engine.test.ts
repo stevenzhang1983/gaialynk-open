@@ -22,6 +22,8 @@ describe("trust.engine", () => {
 
     expect(decision.decision).toBe("deny");
     expect(decision.reason_codes).toContain("identity_unverified");
+    expect(decision.policy_version).toBe("trust-policy-v1");
+    expect(decision.policy_rule_id).toBe("identity_required");
   });
 
   it("returns deny when capability is missing", () => {
@@ -33,6 +35,7 @@ describe("trust.engine", () => {
 
     expect(decision.decision).toBe("deny");
     expect(decision.reason_codes).toContain("capability_not_declared");
+    expect(decision.policy_rule_id).toBe("capability_required");
   });
 
   it("returns deny for critical risk", () => {
@@ -44,6 +47,7 @@ describe("trust.engine", () => {
 
     expect(decision.decision).toBe("deny");
     expect(decision.reason_codes).toContain("risk_critical_denied");
+    expect(decision.policy_rule_id).toBe("critical_denied");
   });
 
   it("returns need_confirmation for high risk", () => {
@@ -55,6 +59,7 @@ describe("trust.engine", () => {
 
     expect(decision.decision).toBe("need_confirmation");
     expect(decision.required_actions).toContain("user_confirmation");
+    expect(decision.policy_rule_id).toBe("high_requires_confirmation");
   });
 
   it("returns allow for low risk", () => {
@@ -66,5 +71,6 @@ describe("trust.engine", () => {
 
     expect(decision.decision).toBe("allow");
     expect(decision.reason_codes).toContain("risk_acceptable");
+    expect(decision.policy_rule_id).toBe("risk_acceptable_allow");
   });
 });

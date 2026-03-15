@@ -46,6 +46,14 @@ npm test
 npm run typecheck
 ```
 
+官网入口（Phase 1）开发与构建：
+
+```bash
+npm run dev:website
+npm run typecheck:website
+npm run build:website
+```
+
 PostgreSQL 集成测试（需设置 `DATABASE_URL` 并先执行 migration）：
 
 ```bash
@@ -133,6 +141,8 @@ npm run demo:phase0
 
 ## Open Source
 
+- 本仓库遵循 Open Core：开源最小可接入与可验证能力，托管运营与商业化能力保持闭源分层。
+- [OSS vs Cloud 能力矩阵（草案）](./docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 - [Security Policy](./SECURITY.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)

@@ -29,6 +29,10 @@ interface EmitAuditEventInput {
 interface ListAuditEventsQuery {
   eventType?: string;
   conversationId?: string;
+  agentId?: string;
+  actorType?: "user" | "agent" | "system";
+  from?: string;
+  to?: string;
   cursor?: string;
   limit?: number;
 }
@@ -76,6 +80,18 @@ export const listAuditEvents = (query?: ListAuditEventsQuery): ListAuditEventsRe
       return false;
     }
     if (query?.conversationId && event.conversation_id !== query.conversationId) {
+      return false;
+    }
+    if (query?.agentId && event.agent_id !== query.agentId) {
+      return false;
+    }
+    if (query?.actorType && event.actor_type !== query.actorType) {
+      return false;
+    }
+    if (query?.from && Date.parse(event.created_at) < Date.parse(query.from)) {
+      return false;
+    }
+    if (query?.to && Date.parse(event.created_at) > Date.parse(query.to)) {
       return false;
     }
     return true;
@@ -147,6 +163,22 @@ export const listAuditEventsAsync = async (queryParams?: ListAuditEventsQuery): 
   if (queryParams?.conversationId) {
     values.push(queryParams.conversationId);
     clauses.push(`conversation_id = $${values.length}`);
+  }
+  if (queryParams?.agentId) {
+    values.push(queryParams.agentId);
+    clauses.push(`agent_id = $${values.length}`);
+  }
+  if (queryParams?.actorType) {
+    values.push(queryParams.actorType);
+    clauses.push(`actor_type = $${values.length}`);
+  }
+  if (queryParams?.from) {
+    values.push(queryParams.from);
+    clauses.push(`created_at >= $${values.length}`);
+  }
+  if (queryParams?.to) {
+    values.push(queryParams.to);
+    clauses.push(`created_at <= $${values.length}`);
   }
 
   values.push(limit);

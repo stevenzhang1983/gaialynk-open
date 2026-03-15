@@ -28,6 +28,8 @@ export interface Message {
   content: {
     type: "text";
     text: string;
+    thread_id?: string;
+    mentions?: string[];
   };
   created_at: string;
 }
@@ -44,6 +46,8 @@ interface AppendMessageInput {
   senderType: "user" | "agent" | "system";
   senderId: string;
   text: string;
+  threadId?: string;
+  mentions?: string[];
 }
 
 const conversations = new Map<string, Conversation>();
@@ -243,6 +247,8 @@ export const appendMessage = (input: AppendMessageInput): Message | null => {
     content: {
       type: "text",
       text: input.text,
+      thread_id: input.threadId,
+      mentions: input.mentions,
     },
     created_at: nowIso(),
   };
@@ -279,6 +285,8 @@ export const appendMessageAsync = async (input: AppendMessageInput): Promise<Mes
     content: {
       type: "text",
       text: input.text,
+      thread_id: input.threadId,
+      mentions: input.mentions,
     },
     created_at: nowIso(),
   };

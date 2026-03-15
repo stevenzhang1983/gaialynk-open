@@ -76,6 +76,8 @@ const joinAgentSchema = z.object({
 const sendMessageSchema = z.object({
   sender_id: z.string().min(1),
   text: z.string().min(1),
+  thread_id: z.string().min(1).max(128).optional(),
+  mentions: z.array(z.string().min(1)).max(20).optional(),
   target_agent_ids: z.array(z.string().min(1)).optional(),
 });
 
@@ -93,6 +95,41 @@ const heartbeatNodeSchema = z.object({
   node_id: z.string().min(1),
 });
 
+const relayInvokeSchema = z.object({
+  node_id: z.string().uuid(),
+  conversation_id: z.string().uuid(),
+  agent_id: z.string().uuid(),
+  sender_id: z.string().min(1),
+  text: z.string().min(1),
+  thread_id: z.string().min(1).max(128).optional(),
+  mentions: z.array(z.string().min(1)).max(20).optional(),
+  retry_max: z.number().int().min(0).max(3).optional(),
+  stale_after_sec: z.number().int().min(1).max(86400).optional(),
+});
+
+const recommendationQuerySchema = z.object({
+  intent: z.string().min(1),
+  risk_max: z.enum(["low", "medium", "high", "critical"]).optional(),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+});
+
+const publicEntryEventSchema = z.object({
+  event_name: z.enum([
+    "page_view",
+    "cta_click",
+    "docs_click",
+    "demo_click",
+    "waitlist_submit",
+    "demo_submit",
+    "lang_switch",
+  ]),
+  locale: z.enum(["en", "zh-Hant", "zh-Hans"]),
+  page: z.string().min(1).max(128),
+  cta_id: z.string().min(1).max(128).optional(),
+  source: z.string().max(256).optional(),
+  device_type: z.enum(["mobile", "desktop"]).optional(),
+});
+
 const toDecisionEventType = (
   decision: "allow" | "allow_limited" | "deny" | "need_confirmation",
 ): string => {
@@ -103,6 +140,13 @@ const toDecisionEventType = (
     return "invocation.denied";
   }
   return "invocation.need_confirmation";
+};
+
+const riskRank = (risk: "low" | "medium" | "high" | "critical"): number => {
+  if (risk === "low") return 0;
+  if (risk === "medium") return 1;
+  if (risk === "high") return 2;
+  return 3;
 };
 
 const syncNodeDirectorySchema = z.object({
@@ -162,6 +206,61 @@ export const createApp = (): Hono => {
     return c.json({ data: detail }, 200);
   });
 
+  app.get("/api/v1/conversations/:id/presence", async (c) => {
+    const conversationId = c.req.param("id");
+    const detail = await getConversationDetailAsync(conversationId);
+    if (!detail) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+
+    const items = [];
+    for (const participant of detail.participants) {
+      if (participant.participant_type === "user") {
+        items.push({
+          participant_id: participant.participant_id,
+          participant_type: "user",
+          status: "online",
+          last_seen_at: participant.joined_at,
+        });
+        continue;
+      }
+
+      const agent = await getAgentByIdAsync(participant.participant_id);
+      if (!agent) {
+        items.push({
+          participant_id: participant.participant_id,
+          participant_type: "agent",
+          status: "offline",
+          last_seen_at: participant.joined_at,
+        });
+        continue;
+      }
+
+      if (agent.source_origin === "connected_node" && agent.node_id) {
+        const node = await getNodeByNodeIdAsync(agent.node_id);
+        items.push({
+          participant_id: participant.participant_id,
+          participant_type: "agent",
+          status: node?.status ?? "offline",
+          source_origin: agent.source_origin,
+          node_id: agent.node_id,
+          last_seen_at: node?.last_heartbeat ?? participant.joined_at,
+        });
+        continue;
+      }
+
+      items.push({
+        participant_id: participant.participant_id,
+        participant_type: "agent",
+        status: "online",
+        source_origin: agent.source_origin ?? "official",
+        last_seen_at: participant.joined_at,
+      });
+    }
+
+    return c.json({ data: { conversation_id: conversationId, participants: items } }, 200);
+  });
+
   app.post("/api/v1/agents", async (c) => {
     const payload = registerAgentSchema.parse(await c.req.json());
     const agent = await registerAgentAsync(payload);
@@ -174,6 +273,70 @@ export const createApp = (): Hono => {
       status: 200,
       headers: { "content-type": "application/json" },
     });
+  });
+
+  app.get("/api/v1/agents/recommendations", async (c) => {
+    const parsed = recommendationQuerySchema.safeParse({
+      intent: c.req.query("intent"),
+      risk_max: c.req.query("risk_max"),
+      limit: c.req.query("limit"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_recommendation_query",
+            message: "Invalid recommendation query",
+          },
+        },
+        400,
+      );
+    }
+
+    const { intent, risk_max: riskMax, limit } = parsed.data;
+    const intentLower = intent.toLowerCase();
+    const maxRank = riskMax ? riskRank(riskMax) : Number.POSITIVE_INFINITY;
+
+    const agents = await listAgentsAsync();
+    const scored = agents
+      .map((agent) => {
+        const firstCapability = agent.capabilities[0];
+        if (!firstCapability) {
+          return null;
+        }
+        if (riskRank(firstCapability.risk_level) > maxRank) {
+          return null;
+        }
+
+        let score = 0;
+        for (const capability of agent.capabilities) {
+          if (capability.name.toLowerCase().includes(intentLower)) {
+            score += 3;
+          }
+        }
+        if (agent.name.toLowerCase().includes(intentLower)) {
+          score += 2;
+        }
+        if (agent.description.toLowerCase().includes(intentLower)) {
+          score += 1;
+        }
+
+        return {
+          agent,
+          score,
+          reason: score > 0 ? "semantic_match" : "fallback_risk_filtered",
+        };
+      })
+      .filter((item): item is { agent: Agent; score: number; reason: string } => Boolean(item))
+      .sort((a, b) => b.score - a.score || b.agent.created_at.localeCompare(a.agent.created_at))
+      .slice(0, limit ?? 5)
+      .map((item) => ({
+        agent: item.agent,
+        score: item.score,
+        reason: item.reason,
+      }));
+
+    return c.json({ data: scored }, 200);
   });
 
   app.get("/api/v1/agents/:id", async (c) => {
@@ -218,6 +381,8 @@ export const createApp = (): Hono => {
       senderType: "user",
       senderId: payload.sender_id,
       text: payload.text,
+      threadId: payload.thread_id,
+      mentions: payload.mentions,
     });
 
     if (!userMessage) {
@@ -751,6 +916,14 @@ export const createApp = (): Hono => {
   app.get("/api/v1/audit-events", async (c) => {
     const eventType = c.req.query("event_type");
     const conversationId = c.req.query("conversation_id");
+    const agentId = c.req.query("agent_id");
+    const actorTypeRaw = c.req.query("actor_type");
+    const actorType =
+      actorTypeRaw === "user" || actorTypeRaw === "agent" || actorTypeRaw === "system"
+        ? actorTypeRaw
+        : undefined;
+    const from = c.req.query("from");
+    const to = c.req.query("to");
     const cursor = c.req.query("cursor");
     const limit = c.req.query("limit");
 
@@ -758,6 +931,10 @@ export const createApp = (): Hono => {
     const result = await listAuditEventsAsync({
       eventType,
       conversationId,
+      agentId,
+      actorType,
+      from,
+      to,
       cursor,
       limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
     });
@@ -810,6 +987,77 @@ export const createApp = (): Hono => {
     });
   });
 
+  app.post("/api/v1/nodes/relay/invoke", async (c) => {
+    const payload = relayInvokeSchema.parse(await c.req.json());
+    const node = await getNodeByNodeIdAsync(payload.node_id);
+    if (!node) {
+      return c.json({ error: { code: "node_not_found", message: "Node not found" } }, 404);
+    }
+
+    const staleAfterSec = payload.stale_after_sec ?? 30;
+    const lagMs = Date.now() - Date.parse(node.last_heartbeat);
+    if (lagMs > staleAfterSec * 1000) {
+      return c.json(
+        {
+          error: {
+            code: "node_unavailable",
+            message: "Node is considered offline due to stale heartbeat",
+            details: {
+              node_id: payload.node_id,
+              heartbeat_lag_ms: lagMs,
+              stale_after_sec: staleAfterSec,
+              retry_after_sec: 3,
+            },
+          },
+        },
+        503,
+      );
+    }
+
+    const agent = await getAgentByIdAsync(payload.agent_id);
+    if (!agent) {
+      return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+    }
+
+    if (agent.node_id !== payload.node_id) {
+      return c.json(
+        {
+          error: {
+            code: "agent_node_mismatch",
+            message: "Agent does not belong to the specified node",
+          },
+        },
+        400,
+      );
+    }
+
+    const maxRetry = payload.retry_max ?? 1;
+    let lastResponse: Response | null = null;
+    for (let attempt = 0; attempt <= maxRetry; attempt += 1) {
+      lastResponse = await app.request(`/api/v1/conversations/${payload.conversation_id}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sender_id: payload.sender_id,
+          text: payload.text,
+          thread_id: payload.thread_id,
+          mentions: payload.mentions,
+          target_agent_ids: [payload.agent_id],
+        }),
+      });
+
+      if (lastResponse.status !== 502) {
+        break;
+      }
+    }
+
+    if (!lastResponse) {
+      return c.json({ error: { code: "relay_failed", message: "Relay invocation failed" } }, 502);
+    }
+    const body = await lastResponse.json();
+    return c.json(body, lastResponse.status as 200 | 201 | 202 | 400 | 403 | 404 | 409 | 502);
+  });
+
   app.post("/api/v1/nodes/sync-directory", async (c) => {
     const payload = syncNodeDirectorySchema.parse(await c.req.json());
     const node = await getNodeByNodeIdAsync(payload.node_id);
@@ -844,6 +1092,172 @@ export const createApp = (): Hono => {
       status: 200,
       headers: { "content-type": "application/json" },
     });
+  });
+
+  app.get("/api/v1/nodes/compatibility", async (c) => {
+    return c.json(
+      {
+        data: {
+          node_protocol_min: "1.0.0",
+          node_protocol_recommended: "1.1.0",
+          supported_node_status: ["online", "degraded", "offline"],
+        },
+      },
+      200,
+    );
+  });
+
+  app.get("/api/v1/nodes/health", async (c) => {
+    const staleAfterSecRaw = c.req.query("stale_after_sec");
+    const staleAfterSec = staleAfterSecRaw ? Number(staleAfterSecRaw) : 30;
+    const staleAfterMs = (Number.isFinite(staleAfterSec) ? staleAfterSec : 30) * 1000;
+    const now = Date.now();
+
+    const nodes = await listNodesAsync();
+    const computed = nodes.map((node) => {
+      const heartbeatTs = Date.parse(node.last_heartbeat);
+      const lagMs = Number.isFinite(heartbeatTs) ? Math.max(0, now - heartbeatTs) : Number.POSITIVE_INFINITY;
+      const healthStatus = lagMs > staleAfterMs ? "offline" : node.status;
+      return {
+        node_id: node.node_id,
+        status: healthStatus,
+        heartbeat_lag_ms: lagMs,
+        endpoint: node.endpoint,
+      };
+    });
+
+    const summary = {
+      total: computed.length,
+      online: computed.filter((node) => node.status === "online").length,
+      degraded: computed.filter((node) => node.status === "degraded").length,
+      offline: computed.filter((node) => node.status === "offline").length,
+    };
+
+    return c.json(
+      {
+        data: {
+          stale_after_sec: Number.isFinite(staleAfterSec) ? staleAfterSec : 30,
+          summary,
+          nodes: computed,
+        },
+      },
+      200,
+    );
+  });
+
+  app.get("/api/v1/usage/counters", async (c) => {
+    const actorId = c.req.query("actor_id");
+    const windowDaysRaw = c.req.query("window_days");
+    const windowDays = windowDaysRaw ? Number(windowDaysRaw) : 30;
+    const from = new Date(Date.now() - (Number.isFinite(windowDays) ? windowDays : 30) * 24 * 60 * 60 * 1000).toISOString();
+
+    const events = (await listAuditEventsAsync({ from, limit: 5000 })).data;
+    const actorEvents = actorId ? events.filter((event) => event.actor_id === actorId) : events;
+
+    const invocationEvents = actorEvents.filter((event) => event.event_type.startsWith("invocation."));
+    return c.json(
+      {
+        data: {
+          actor_id: actorId ?? null,
+          window_days: Number.isFinite(windowDays) ? windowDays : 30,
+          invocation_events_total: invocationEvents.length,
+          audit_events_total: actorEvents.length,
+        },
+      },
+      200,
+    );
+  });
+
+  app.get("/api/v1/public/overview", async (c) => {
+    const metrics = await getPhase0Metrics();
+    return c.json(
+      {
+        data: {
+          weekly_trusted_invocations: metrics.weekly_trusted_invocations,
+          connected_nodes_total: metrics.connected_nodes_total,
+          conversations_active_total: metrics.conversations_active_total,
+          go_no_go: metrics.go_no_go,
+        },
+      },
+      200,
+    );
+  });
+
+  app.get("/api/v1/public/entry-metrics", async (c) => {
+    const metrics = await getPhase0Metrics();
+    const eventRows = (
+      await listAuditEventsAsync({
+        from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        limit: 5000,
+      })
+    ).data.filter((event) => event.event_type.startsWith("entry."));
+
+    const totals: Record<string, number> = {};
+    const localeBreakdown: Record<string, Record<string, number>> = {
+      en: {},
+      "zh-Hant": {},
+      "zh-Hans": {},
+    };
+    for (const event of eventRows) {
+      const eventName = event.event_type.replace("entry.", "");
+      totals[eventName] = (totals[eventName] ?? 0) + 1;
+      const locale = (event.payload.locale as string | undefined) ?? "en";
+      if (!localeBreakdown[locale]) {
+        localeBreakdown[locale] = {};
+      }
+      localeBreakdown[locale][eventName] = (localeBreakdown[locale][eventName] ?? 0) + 1;
+    }
+
+    return c.json(
+      {
+        data: {
+          locales_supported: ["en", "zh-Hant", "zh-Hans"],
+          weekly_trusted_invocations: metrics.weekly_trusted_invocations,
+          first_session_success_rate: metrics.first_session_success_rate,
+          connected_nodes_total: metrics.connected_nodes_total,
+          conversion_baseline: {
+            page_view_home: totals.page_view ?? 0,
+            cta_click_start_building: totals.cta_click ?? 0,
+            docs_click: totals.docs_click ?? 0,
+            waitlist_submit: totals.waitlist_submit ?? 0,
+            demo_submit: totals.demo_submit ?? 0,
+          },
+          locale_breakdown: localeBreakdown,
+        },
+      },
+      200,
+    );
+  });
+
+  app.post("/api/v1/public/entry-events", async (c) => {
+    const payload = publicEntryEventSchema.parse(await c.req.json());
+    const eventType = `entry.${payload.event_name}`;
+    await emitAuditEventAsync({
+      eventType,
+      actorType: "user",
+      actorId: "public-entry",
+      payload,
+      correlationId: randomUUID(),
+    });
+    return c.json({ data: { accepted: true, event_type: eventType } }, 202);
+  });
+
+  app.get("/api/v1/meta", async (c) => {
+    return c.json(
+      {
+        data: {
+          api_version: "v1",
+          trust_policy_version: "trust-policy-v1",
+          features: [
+            "multi_agent_targeting",
+            "review_queue",
+            "node_directory_sync",
+            "receipt_signature_verification",
+          ],
+        },
+      },
+      200,
+    );
   });
 
   return app;
