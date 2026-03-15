@@ -23,7 +23,7 @@ jobs:
         run: npm ci
 
       - name: Promise consistency gate tests
-        run: npm test -- packages/website/tests/promise-consistency-gate.test.ts packages/website/tests/vision-coverage.test.ts
+        run: npx vitest run --config vitest.website.config.ts packages/website/tests/promise-consistency-gate.test.ts packages/website/tests/vision-coverage.test.ts
 
   test-and-typecheck:
     runs-on: ubuntu-latest
