@@ -121,4 +121,39 @@ integrationDescribe("postgres integration", () => {
     expect(metricsBody.data.audit_event_coverage_ratio).toBeGreaterThanOrEqual(0);
     expect(metricsBody.data.audit_event_coverage_ratio).toBeLessThanOrEqual(1);
   });
+
+  it("persists deployment records across app restarts", async () => {
+    const instantiateRes = await app.request("/api/v1/deploy/templates/starter-assistant/instantiate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor_id: "pg-deploy-user",
+        agent_name: "PG Persistent Agent",
+      }),
+    });
+    expect(instantiateRes.status).toBe(201);
+    const instantiateBody = await instantiateRes.json();
+    const deploymentId = instantiateBody.data.id as string;
+
+    const appAfterRestart = createApp();
+    const activateRes = await appAfterRestart.request(`/api/v1/deployments/${deploymentId}/activate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actor_id: "pg-deploy-user" }),
+    });
+    expect(activateRes.status).toBe(201);
+    const activateBody = await activateRes.json();
+    expect(activateBody.data.status).toBe("ready");
+    expect(activateBody.data.agent.id).toBeTypeOf("string");
+
+    const secondRestartApp = createApp();
+    const activateAgainRes = await secondRestartApp.request(`/api/v1/deployments/${deploymentId}/activate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actor_id: "pg-deploy-user" }),
+    });
+    expect(activateAgainRes.status).toBe(200);
+    const activateAgainBody = await activateAgainRes.json();
+    expect(activateAgainBody.meta.idempotent).toBe(true);
+  });
 });
