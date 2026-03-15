@@ -10,6 +10,13 @@ import {
   type Message,
   resetConversationStore,
 } from "./modules/conversation/conversation.store";
+import {
+  createInvitationAsync,
+  getInvitationAsync,
+  listInvitationsByConversationAsync,
+  markInvitationAcceptedAsync,
+  resetInvitationStore,
+} from "./modules/conversation/invitation.store";
 import type { Agent } from "./modules/directory/agent.store";
 import {
   getAgentByIdAsync,
@@ -29,6 +36,11 @@ import {
   resetInvocationStore,
 } from "./modules/gateway/invocation.store";
 import {
+  denyInvocationAsync,
+  getDeniedDecisionAsync,
+  resetReviewDecisionStore,
+} from "./modules/gateway/review-decision.store";
+import {
   emitAuditEventAsync,
   listAuditEventsAsync,
   resetAuditStore,
@@ -41,13 +53,27 @@ import {
 } from "./modules/audit/receipt.store";
 import { getPhase0Metrics } from "./modules/metrics/metrics.service";
 import {
+  getDeploymentByIdAsync,
+  getDeployTemplateByIdAsync,
+  instantiateTemplateAsync,
+  listDeployTemplatesAsync,
+  markDeploymentReadyAsync,
+  resetDeployTemplateStore,
+} from "./modules/deploy/template.store";
+import {
   heartbeatNodeAsync,
   getNodeByNodeIdAsync,
   listNodesAsync,
   registerNodeAsync,
   resetNodeStore,
 } from "./modules/node-hub/node.store";
+import {
+  consumeQuotaAsync,
+  getQuotaStatusAsync,
+  resetQuotaStore,
+} from "./modules/usage/quota.store";
 import { evaluateTrustDecision } from "./modules/trust/trust.engine";
+import { evaluateDataBoundaryPolicy } from "./modules/trust/data-boundary.policy";
 
 const createConversationSchema = z.object({
   title: z.string().min(1).max(255),
@@ -83,6 +109,53 @@ const sendMessageSchema = z.object({
 
 const confirmInvocationSchema = z.object({
   approver_id: z.string().min(1),
+});
+
+const createInvitationSchema = z.object({
+  inviter_id: z.string().min(1),
+  invitee_type: z.enum(["user", "agent"]),
+  invitee_id: z.string().min(1),
+  role: z.enum(["member", "admin", "readonly"]).default("member"),
+  message: z.string().min(1).max(280).optional(),
+});
+
+const acceptInvitationSchema = z.object({
+  actor_id: z.string().min(1),
+});
+
+const reviewQueueApproveSchema = z.object({
+  approver_id: z.string().min(1),
+});
+
+const reviewQueueDenySchema = z.object({
+  approver_id: z.string().min(1),
+  reason: z.string().min(1).max(280).optional(),
+});
+
+const instantiateTemplateSchema = z.object({
+  actor_id: z.string().min(1),
+  agent_name: z.string().min(1).max(120),
+});
+
+const usageLimitsQuerySchema = z.object({
+  actor_id: z.string().min(1),
+  feature: z.string().min(1),
+});
+
+const activateDeploymentSchema = z.object({
+  actor_id: z.string().min(1),
+});
+
+const nodeConnectionWizardValidateSchema = z.object({
+  endpoint: z.url(),
+  node_protocol_version: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/, "node_protocol_version must be semver-like x.y.z"),
+});
+
+const injectionAlertsQuerySchema = z.object({
+  conversation_id: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 const registerNodeSchema = z.object({
@@ -171,6 +244,22 @@ const riskRank = (risk: "low" | "medium" | "high" | "critical"): number => {
   return 3;
 };
 
+const compareSemver = (left: string, right: string): number => {
+  const leftParts = left.split(".").map((part) => Number(part));
+  const rightParts = right.split(".").map((part) => Number(part));
+  for (let index = 0; index < 3; index += 1) {
+    const l = leftParts[index] ?? 0;
+    const r = rightParts[index] ?? 0;
+    if (l > r) {
+      return 1;
+    }
+    if (l < r) {
+      return -1;
+    }
+  }
+  return 0;
+};
+
 const syncNodeDirectorySchema = z.object({
   node_id: z.string().uuid(),
   agents: z.array(
@@ -192,8 +281,12 @@ const syncNodeDirectorySchema = z.object({
 
 const resetAllStores = (): void => {
   resetConversationStore();
+  resetInvitationStore();
+  resetDeployTemplateStore();
+  resetQuotaStore();
   resetAgentStore();
   resetInvocationStore();
+  resetReviewDecisionStore();
   resetAuditStore();
   resetReceiptStore();
   resetNodeStore();
@@ -428,16 +521,113 @@ export const createApp = (): Hono => {
     return c.json({ data: addedParticipant }, 201);
   });
 
+  app.post("/api/v1/conversations/:id/invitations", async (c) => {
+    const conversationId = c.req.param("id");
+    const payload = createInvitationSchema.parse(await c.req.json());
+    const invitation = await createInvitationAsync({
+      conversationId,
+      inviterId: payload.inviter_id,
+      inviteeType: payload.invitee_type,
+      inviteeId: payload.invitee_id,
+      role: payload.role,
+      message: payload.message,
+    });
+
+    if (!invitation) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+
+    return c.json({ data: invitation }, 201);
+  });
+
+  app.get("/api/v1/conversations/:id/invitations", async (c) => {
+    const conversationId = c.req.param("id");
+    const invitations = await listInvitationsByConversationAsync(conversationId);
+    if (!invitations) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+
+    return c.json({ data: invitations }, 200);
+  });
+
+  app.post("/api/v1/conversations/:id/invitations/:invitationId/accept", async (c) => {
+    const conversationId = c.req.param("id");
+    const invitationId = c.req.param("invitationId");
+    const payload = acceptInvitationSchema.parse(await c.req.json());
+    const invitation = await getInvitationAsync(conversationId, invitationId);
+
+    if (!invitation) {
+      return c.json({ error: { code: "invitation_not_found", message: "Invitation not found" } }, 404);
+    }
+
+    if (invitation.invitee_id !== payload.actor_id) {
+      return c.json({ error: { code: "invitation_actor_mismatch", message: "Invitation actor mismatch" } }, 403);
+    }
+
+    if (invitation.status === "accepted") {
+      return c.json({ data: invitation, meta: { idempotent: true } }, 200);
+    }
+
+    if (invitation.status !== "pending") {
+      return c.json({ error: { code: "invitation_not_actionable", message: "Invitation is not pending" } }, 409);
+    }
+
+    const participant = await addParticipantAsync({
+      conversationId,
+      participantType: invitation.invitee_type,
+      participantId: invitation.invitee_id,
+      role: invitation.role,
+    });
+
+    if (!participant) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+
+    const accepted = await markInvitationAcceptedAsync(conversationId, invitationId);
+    if (!accepted) {
+      return c.json({ error: { code: "invitation_not_found", message: "Invitation not found" } }, 404);
+    }
+
+    return c.json({ data: accepted, meta: { participant_id: participant.id, idempotent: false } }, 200);
+  });
+
   app.post("/api/v1/conversations/:id/messages", async (c) => {
     const conversationId = c.req.param("id");
     const payload = sendMessageSchema.parse(await c.req.json());
     const correlationId = randomUUID();
+    const ingestBoundaryDecision = evaluateDataBoundaryPolicy({ text: payload.text });
+
+    if (ingestBoundaryDecision.decision === "deny") {
+      await emitAuditEventAsync({
+        eventType: "boundary.denied",
+        conversationId,
+        actorType: "user",
+        actorId: payload.sender_id,
+        payload: {
+          text: payload.text,
+          reason_codes: ingestBoundaryDecision.reason_codes,
+          stage: "ingest",
+        },
+        correlationId,
+      });
+      return c.json(
+        {
+          error: {
+            code: "data_boundary_violation",
+            message: "Message blocked by data boundary policy",
+            details: { reason_codes: ingestBoundaryDecision.reason_codes, stage: "ingest" },
+          },
+        },
+        422,
+      );
+    }
+    const sanitizedText = ingestBoundaryDecision.sanitized_text ?? payload.text;
 
     const userMessage = await appendMessageAsync({
       conversationId,
       senderType: "user",
       senderId: payload.sender_id,
-      text: payload.text,
+      text: sanitizedText,
       threadId: payload.thread_id,
       mentions: payload.mentions,
     });
@@ -507,7 +697,7 @@ export const createApp = (): Hono => {
           actorId: payload.sender_id,
           payload: {
             message_id: userMessage.id,
-            text: payload.text,
+            text: sanitizedText,
           },
           trustDecision,
           correlationId: perAgentCorrelationId,
@@ -518,7 +708,7 @@ export const createApp = (): Hono => {
             conversationId,
             agentId: agent.id,
             requesterId: payload.sender_id,
-            userText: payload.text,
+            userText: sanitizedText,
           });
           await emitAuditEventAsync({
             eventType: "invocation.pending_confirmation",
@@ -544,10 +734,28 @@ export const createApp = (): Hono => {
 
         let agentMessage: Message | null = null;
         try {
+          const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: sanitizedText });
+          if (forwardBoundaryDecision.decision === "deny") {
+            await emitAuditEventAsync({
+              eventType: "boundary.denied",
+              conversationId,
+              agentId: agent.id,
+              actorType: "user",
+              actorId: payload.sender_id,
+              payload: {
+                text: sanitizedText,
+                reason_codes: forwardBoundaryDecision.reason_codes,
+                stage: "forward",
+              },
+              correlationId: perAgentCorrelationId,
+            });
+            deniedAgents.push({ agent_id: agent.id, reason_codes: forwardBoundaryDecision.reason_codes });
+            continue;
+          }
           const a2aResponse = await requestAgent({
             conversationId,
             agent,
-            userText: payload.text,
+            userText: sanitizedText,
           });
           agentMessage = await appendMessageAsync({
             conversationId,
@@ -681,7 +889,7 @@ export const createApp = (): Hono => {
       actorId: payload.sender_id,
       payload: {
         message_id: userMessage.id,
-        text: payload.text,
+        text: sanitizedText,
       },
       trustDecision,
       correlationId,
@@ -692,7 +900,7 @@ export const createApp = (): Hono => {
         conversationId,
         agentId: agent.id,
         requesterId: payload.sender_id,
-        userText: payload.text,
+        userText: sanitizedText,
       });
 
       await emitAuditEventAsync({
@@ -736,10 +944,36 @@ export const createApp = (): Hono => {
 
     let agentMessage: Message | null = null;
     try {
+      const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: sanitizedText });
+      if (forwardBoundaryDecision.decision === "deny") {
+        await emitAuditEventAsync({
+          eventType: "boundary.denied",
+          conversationId,
+          agentId: agent.id,
+          actorType: "user",
+          actorId: payload.sender_id,
+          payload: {
+            text: sanitizedText,
+            reason_codes: forwardBoundaryDecision.reason_codes,
+            stage: "forward",
+          },
+          correlationId,
+        });
+        return c.json(
+          {
+            error: {
+              code: "data_boundary_violation",
+              message: "Forwarding blocked by data boundary policy",
+              details: { reason_codes: forwardBoundaryDecision.reason_codes, stage: "forward" },
+            },
+          },
+          422,
+        );
+      }
       const a2aResponse = await requestAgent({
         conversationId,
         agent,
-        userText: payload.text,
+        userText: sanitizedText,
       });
 
       agentMessage = await appendMessageAsync({
@@ -848,6 +1082,34 @@ export const createApp = (): Hono => {
 
     let agentMessage: Message | null = null;
     try {
+      const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: invocation.user_text });
+      if (forwardBoundaryDecision.decision === "deny") {
+        await emitAuditEventAsync({
+          eventType: "boundary.denied",
+          conversationId: invocation.conversation_id,
+          agentId: agent.id,
+          actorType: "user",
+          actorId: payload.approver_id,
+          payload: {
+            text: invocation.user_text,
+            reason_codes: forwardBoundaryDecision.reason_codes,
+            stage: "confirm_forward",
+            invocation_id: invocation.id,
+          },
+          correlationId,
+        });
+        await rollbackInvocationProcessingAsync(claimedInvocation.id);
+        return c.json(
+          {
+            error: {
+              code: "data_boundary_violation",
+              message: "Forwarding blocked by data boundary policy",
+              details: { reason_codes: forwardBoundaryDecision.reason_codes, stage: "confirm_forward" },
+            },
+          },
+          422,
+        );
+      }
       const a2aResponse = await requestAgent({
         conversationId: invocation.conversation_id,
         agent,
@@ -970,6 +1232,160 @@ export const createApp = (): Hono => {
     return c.json({ data: invocation }, 200);
   });
 
+  app.get("/api/v1/review-queue", async (c) => {
+    const queue = await listInvocationsAsync({ status: "pending_confirmation" });
+    const items = [];
+    for (const invocation of queue) {
+      const deniedDecision = await getDeniedDecisionAsync(invocation.id);
+      if (deniedDecision) {
+        continue;
+      }
+      items.push({
+        invocation_id: invocation.id,
+        conversation_id: invocation.conversation_id,
+        agent_id: invocation.agent_id,
+        requester_id: invocation.requester_id,
+        status: invocation.status,
+        created_at: invocation.created_at,
+      });
+    }
+    return c.json({ data: items }, 200);
+  });
+
+  app.post("/api/v1/review-queue/:invocationId/approve", async (c) => {
+    const invocationId = c.req.param("invocationId");
+    const payload = reviewQueueApproveSchema.parse(await c.req.json());
+    const invocation = await getInvocationByIdAsync(invocationId);
+    if (!invocation) {
+      return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+
+    const deniedDecision = await getDeniedDecisionAsync(invocationId);
+    if (deniedDecision) {
+      return c.json(
+        {
+          data: deniedDecision,
+          meta: {
+            idempotent: true,
+          },
+        },
+        200,
+      );
+    }
+
+    if (invocation.status === "completed") {
+      return c.json(
+        {
+          data: {
+            invocation_id: invocation.id,
+            status: invocation.status,
+          },
+          meta: {
+            idempotent: true,
+          },
+        },
+        200,
+      );
+    }
+
+    const delegated = await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approver_id: payload.approver_id }),
+    });
+    const delegatedBody = await delegated.json();
+    return c.json(delegatedBody, delegated.status as 200 | 400 | 404 | 409 | 422 | 502);
+  });
+
+  app.post("/api/v1/review-queue/:invocationId/deny", async (c) => {
+    const invocationId = c.req.param("invocationId");
+    const payload = reviewQueueDenySchema.parse(await c.req.json());
+    const invocation = await getInvocationByIdAsync(invocationId);
+    if (!invocation) {
+      return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+
+    const existingDenied = await getDeniedDecisionAsync(invocationId);
+    if (existingDenied) {
+      return c.json(
+        {
+          data: existingDenied,
+          meta: {
+            idempotent: true,
+          },
+        },
+        200,
+      );
+    }
+
+    if (invocation.status === "completed") {
+      return c.json(
+        {
+          error: {
+            code: "invocation_not_actionable",
+            message: "Invocation already completed",
+          },
+        },
+        409,
+      );
+    }
+
+    const denied = await denyInvocationAsync({
+      invocationId,
+      approverId: payload.approver_id,
+      reason: payload.reason,
+    });
+    await emitAuditEventAsync({
+      eventType: "invocation.denied_by_reviewer",
+      conversationId: invocation.conversation_id,
+      agentId: invocation.agent_id,
+      actorType: "user",
+      actorId: payload.approver_id,
+      payload: {
+        invocation_id: invocation.id,
+        reason: payload.reason ?? "not_provided",
+      },
+      correlationId: randomUUID(),
+    });
+    return c.json({ data: denied, meta: { idempotent: false } }, 200);
+  });
+
+  app.get("/api/v1/reputation/agents/:id", async (c) => {
+    const agentId = c.req.param("id");
+    const agent = await getAgentByIdAsync(agentId);
+    if (!agent) {
+      return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+    }
+
+    const events = (await listAuditEventsAsync({ agentId, limit: 5000 })).data;
+    const eventCounts = {
+      completed: events.filter((event) => event.event_type === "invocation.completed").length,
+      failed: events.filter((event) => event.event_type === "invocation.failed").length,
+      denied: events.filter((event) => event.event_type === "invocation.denied").length,
+      need_confirmation: events.filter((event) => event.event_type === "invocation.need_confirmation").length,
+    };
+
+    const rawScore =
+      60 +
+      eventCounts.completed * 8 -
+      eventCounts.failed * 12 -
+      eventCounts.denied * 10 -
+      eventCounts.need_confirmation * 2;
+    const score = Math.max(0, Math.min(100, rawScore));
+    const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 55 ? "C" : "D";
+    return c.json(
+      {
+        data: {
+          agent_id: agentId,
+          score,
+          grade,
+          event_counts: eventCounts,
+        },
+      },
+      200,
+    );
+  });
+
   app.get("/api/v1/audit-events", async (c) => {
     const parsed = auditEventsQuerySchema.safeParse({
       event_type: c.req.query("event_type"),
@@ -1018,6 +1434,42 @@ export const createApp = (): Hono => {
       status: 200,
       headers: { "content-type": "application/json" },
     });
+  });
+
+  app.get("/api/v1/security/injection-alerts", async (c) => {
+    const parsed = injectionAlertsQuerySchema.safeParse({
+      conversation_id: c.req.query("conversation_id"),
+      limit: c.req.query("limit"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_injection_alerts_query",
+            message: "Invalid injection alerts query",
+          },
+        },
+        400,
+      );
+    }
+
+    const events = (
+      await listAuditEventsAsync({
+        eventType: "boundary.denied",
+        conversationId: parsed.data.conversation_id,
+        limit: parsed.data.limit ?? 50,
+      })
+    ).data;
+    const items = events.map((event) => ({
+      event_id: event.id,
+      event_type: event.event_type,
+      conversation_id: event.conversation_id,
+      actor_id: event.actor_id,
+      reason_codes: Array.isArray(event.payload.reason_codes) ? event.payload.reason_codes : [],
+      stage: event.payload.stage,
+      created_at: event.created_at,
+    }));
+    return c.json({ data: { total: items.length, items } }, 200);
   });
 
   app.get("/api/v1/receipts/:id", async (c) => {
@@ -1182,6 +1634,44 @@ export const createApp = (): Hono => {
     );
   });
 
+  app.post("/api/v1/nodes/connection-wizard/validate", async (c) => {
+    const payload = nodeConnectionWizardValidateSchema.parse(await c.req.json());
+    const minVersion = "1.0.0";
+    const recommendedVersion = "1.1.0";
+    const isHttps = payload.endpoint.startsWith("https://");
+    const compareWithMin = compareSemver(payload.node_protocol_version, minVersion);
+    const compareWithRecommended = compareSemver(payload.node_protocol_version, recommendedVersion);
+
+    if (!isHttps || compareWithMin < 0) {
+      return c.json(
+        {
+          error: {
+            code: "node_connection_invalid",
+            message: "Node connection does not meet minimal compatibility requirements",
+            details: {
+              requires_https: true,
+              node_protocol_min: minVersion,
+              provided_protocol: payload.node_protocol_version,
+            },
+          },
+        },
+        400,
+      );
+    }
+
+    return c.json(
+      {
+        data: {
+          compatibility: compareWithRecommended >= 0 ? "compatible" : "compatible_with_warning",
+          node_protocol_min: minVersion,
+          node_protocol_recommended: recommendedVersion,
+          endpoint: payload.endpoint,
+        },
+      },
+      200,
+    );
+  });
+
   app.get("/api/v1/nodes/health", async (c) => {
     const parsed = nodesHealthQuerySchema.safeParse({
       stale_after_sec: c.req.query("stale_after_sec"),
@@ -1274,6 +1764,154 @@ export const createApp = (): Hono => {
         },
       },
       200,
+    );
+  });
+
+  app.get("/api/v1/usage/limits", async (c) => {
+    const parsed = usageLimitsQuerySchema.safeParse({
+      actor_id: c.req.query("actor_id"),
+      feature: c.req.query("feature"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_usage_limits_query",
+            message: "Invalid usage limits query",
+          },
+        },
+        400,
+      );
+    }
+
+    const quota = await getQuotaStatusAsync(parsed.data.actor_id, parsed.data.feature);
+    return c.json({ data: quota }, 200);
+  });
+
+  app.get("/api/v1/deploy/templates", async (c) => {
+    const templates = await listDeployTemplatesAsync();
+    return c.json({ data: templates }, 200);
+  });
+
+  app.post("/api/v1/deploy/templates/:templateId/instantiate", async (c) => {
+    const templateId = c.req.param("templateId");
+    const payload = instantiateTemplateSchema.parse(await c.req.json());
+    const template = await getDeployTemplateByIdAsync(templateId);
+    if (!template) {
+      return c.json({ error: { code: "template_not_found", message: "Template not found" } }, 404);
+    }
+
+    if (template.min_plan !== "free") {
+      return c.json(
+        {
+          error: {
+            code: "plan_upgrade_required",
+            message: "Template requires plan upgrade",
+            details: {
+              min_plan: template.min_plan,
+              upgrade_hint: "Upgrade to Pro to instantiate this template.",
+            },
+          },
+        },
+        403,
+      );
+    }
+
+    const quotaBeforeConsume = await getQuotaStatusAsync(payload.actor_id, "agent_deployments");
+    if (!quotaBeforeConsume.allowed) {
+      return c.json(
+        {
+          error: {
+            code: "quota_exceeded",
+            message: "Free-tier deployment quota exceeded",
+            details: {
+              feature: quotaBeforeConsume.feature,
+              used: quotaBeforeConsume.used,
+              limit: quotaBeforeConsume.limit,
+              remaining: quotaBeforeConsume.remaining,
+              upgrade_hint: quotaBeforeConsume.upgrade_hint,
+            },
+          },
+        },
+        429,
+      );
+    }
+
+    const quota = await consumeQuotaAsync({
+      actorId: payload.actor_id,
+      feature: "agent_deployments",
+      units: 1,
+    });
+
+    const deployment = await instantiateTemplateAsync({
+      templateId,
+      actorId: payload.actor_id,
+      agentName: payload.agent_name,
+    });
+    return c.json(
+      {
+        data: deployment,
+        meta: {
+          usage: quota,
+        },
+      },
+      201,
+    );
+  });
+
+  app.post("/api/v1/deployments/:deploymentId/activate", async (c) => {
+    const deploymentId = c.req.param("deploymentId");
+    const payload = activateDeploymentSchema.parse(await c.req.json());
+    const deployment = await getDeploymentByIdAsync(deploymentId);
+    if (!deployment) {
+      return c.json({ error: { code: "deployment_not_found", message: "Deployment not found" } }, 404);
+    }
+    if (deployment.actor_id !== payload.actor_id) {
+      return c.json({ error: { code: "deployment_actor_mismatch", message: "Deployment actor mismatch" } }, 403);
+    }
+
+    if (deployment.status === "ready" && deployment.activated_agent_id) {
+      const existingAgent = await getAgentByIdAsync(deployment.activated_agent_id);
+      if (!existingAgent) {
+        return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+      }
+      return c.json(
+        {
+          data: {
+            deployment_id: deployment.id,
+            status: deployment.status,
+            agent: existingAgent,
+          },
+          meta: { idempotent: true },
+        },
+        200,
+      );
+    }
+
+    const activatedAgent = await registerAgentAsync({
+      name: deployment.agent_name,
+      description: `Activated from template ${deployment.template_id}`,
+      agent_type: "execution",
+      source_url: `mock://deployment-${deployment.id}`,
+      capabilities: [{ name: "chat_assistant", risk_level: "low" }],
+      source_origin: "self_hosted",
+      status: "active",
+    });
+    const readyDeployment = await markDeploymentReadyAsync(deployment.id, activatedAgent.id);
+    if (!readyDeployment) {
+      return c.json({ error: { code: "deployment_not_found", message: "Deployment not found" } }, 404);
+    }
+
+    return c.json(
+      {
+        data: {
+          deployment_id: readyDeployment.id,
+          status: readyDeployment.status,
+          agent: activatedAgent,
+        },
+        meta: { idempotent: false },
+      },
+      201,
     );
   });
 
