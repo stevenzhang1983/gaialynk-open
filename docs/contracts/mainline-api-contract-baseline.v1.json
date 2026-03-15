@@ -1,0 +1,60 @@
+{
+  "entry_events": {
+    "success_status": 202,
+    "error_status": 400,
+    "error_code": "invalid_public_entry_event",
+    "response_fields": [
+      "accepted",
+      "event_type"
+    ]
+  },
+  "entry_metrics": {
+    "success_status": 200,
+    "required_data_fields": [
+      "connected_nodes_total",
+      "conversion_baseline",
+      "first_session_success_rate",
+      "locale_breakdown",
+      "locales_supported",
+      "weekly_trusted_invocations"
+    ],
+    "required_conversion_fields": [
+      "cta_click_start_building",
+      "demo_submit",
+      "docs_click",
+      "page_view_home",
+      "waitlist_submit"
+    ]
+  },
+  "recommendations": {
+    "success_status": 200,
+    "error_status": 400,
+    "error_code": "invalid_recommendation_query",
+    "required_item_fields": [
+      "agent",
+      "reason",
+      "score"
+    ]
+  },
+  "nodes_health": {
+    "success_status": 200,
+    "error_status": 400,
+    "error_code": "invalid_nodes_health_query",
+    "required_data_fields": [
+      "nodes",
+      "stale_after_sec",
+      "summary"
+    ]
+  },
+  "relay_invoke": {
+    "success_statuses": [
+      201,
+      202
+    ],
+    "error_matrix": {
+      "node_not_found": 404,
+      "agent_not_found": 404,
+      "agent_node_mismatch": 400
+    }
+  }
+}
