@@ -28,6 +28,24 @@ jobs:
       - name: Test
         run: npm test
 
+  mainline-contract-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Mainline contract compatibility guard
+        run: npm run test:contracts:mainline
+
   postgres-integration:
     runs-on: ubuntu-latest
     services:
