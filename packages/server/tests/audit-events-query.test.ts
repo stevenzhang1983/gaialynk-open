@@ -126,4 +126,16 @@ describe("audit-events query", () => {
       expect(event.agent_id).toBe(lowAgentId);
     }
   });
+
+  it("returns 400 for invalid query parameters", async () => {
+    const app = createApp();
+
+    const invalidActorTypeRes = await app.request("/api/v1/audit-events?actor_type=invalid");
+    expect(invalidActorTypeRes.status).toBe(400);
+    const invalidActorTypeBody = await invalidActorTypeRes.json();
+    expect(invalidActorTypeBody.error.code).toBe("invalid_audit_events_query");
+
+    const invalidLimitRes = await app.request("/api/v1/audit-events?limit=0");
+    expect(invalidLimitRes.status).toBe(400);
+  });
 });

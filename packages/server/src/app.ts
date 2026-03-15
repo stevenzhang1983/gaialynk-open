@@ -113,6 +113,26 @@ const recommendationQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(20).optional(),
 });
 
+const nodesHealthQuerySchema = z.object({
+  stale_after_sec: z.coerce.number().int().min(1).max(86400).optional(),
+});
+
+const usageCountersQuerySchema = z.object({
+  actor_id: z.string().min(1).optional(),
+  window_days: z.coerce.number().int().min(1).max(365).optional(),
+});
+
+const auditEventsQuerySchema = z.object({
+  event_type: z.string().min(1).optional(),
+  conversation_id: z.string().uuid().optional(),
+  agent_id: z.string().uuid().optional(),
+  actor_type: z.enum(["user", "agent", "system"]).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
 const publicEntryEventSchema = z.object({
   event_name: z.enum([
     "page_view",
@@ -125,6 +145,8 @@ const publicEntryEventSchema = z.object({
   ]),
   locale: z.enum(["en", "zh-Hant", "zh-Hans"]),
   page: z.string().min(1).max(128),
+  referrer: z.string().min(1).max(512).optional(),
+  timestamp: z.string().min(1).max(64).optional(),
   cta_id: z.string().min(1).max(128).optional(),
   source: z.string().max(256).optional(),
   device_type: z.enum(["mobile", "desktop"]).optional(),
@@ -180,6 +202,36 @@ const resetAllStores = (): void => {
 export const createApp = (): Hono => {
   resetAllStores();
   const app = new Hono();
+
+  app.onError((error, c) => {
+    if (error instanceof z.ZodError) {
+      return c.json(
+        {
+          error: {
+            code: "validation_error",
+            message: "Invalid request payload",
+            details: {
+              issues: error.issues.map((issue) => ({
+                path: issue.path.join("."),
+                message: issue.message,
+              })),
+            },
+          },
+        },
+        400,
+      );
+    }
+
+    return c.json(
+      {
+        error: {
+          code: "internal_error",
+          message: "Internal server error",
+        },
+      },
+      500,
+    );
+  });
 
   app.post("/api/v1/conversations", async (c) => {
     const payload = createConversationSchema.parse(await c.req.json());
@@ -300,11 +352,16 @@ export const createApp = (): Hono => {
     const agents = await listAgentsAsync();
     const scored = agents
       .map((agent) => {
-        const firstCapability = agent.capabilities[0];
-        if (!firstCapability) {
+        if (agent.capabilities.length === 0) {
           return null;
         }
-        if (riskRank(firstCapability.risk_level) > maxRank) {
+
+        const matchedCapabilities = agent.capabilities.filter((capability) =>
+          capability.name.toLowerCase().includes(intentLower),
+        );
+        const riskCandidates = matchedCapabilities.length > 0 ? matchedCapabilities : agent.capabilities;
+        const bestRiskRank = Math.min(...riskCandidates.map((capability) => riskRank(capability.risk_level)));
+        if (bestRiskRank > maxRank) {
           return null;
         }
 
@@ -914,20 +971,38 @@ export const createApp = (): Hono => {
   });
 
   app.get("/api/v1/audit-events", async (c) => {
-    const eventType = c.req.query("event_type");
-    const conversationId = c.req.query("conversation_id");
-    const agentId = c.req.query("agent_id");
-    const actorTypeRaw = c.req.query("actor_type");
-    const actorType =
-      actorTypeRaw === "user" || actorTypeRaw === "agent" || actorTypeRaw === "system"
-        ? actorTypeRaw
-        : undefined;
-    const from = c.req.query("from");
-    const to = c.req.query("to");
-    const cursor = c.req.query("cursor");
-    const limit = c.req.query("limit");
+    const parsed = auditEventsQuerySchema.safeParse({
+      event_type: c.req.query("event_type"),
+      conversation_id: c.req.query("conversation_id"),
+      agent_id: c.req.query("agent_id"),
+      actor_type: c.req.query("actor_type"),
+      from: c.req.query("from"),
+      to: c.req.query("to"),
+      cursor: c.req.query("cursor"),
+      limit: c.req.query("limit"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_audit_events_query",
+            message: "Invalid audit events query",
+          },
+        },
+        400,
+      );
+    }
 
-    const parsedLimit = limit ? Number(limit) : undefined;
+    const {
+      event_type: eventType,
+      conversation_id: conversationId,
+      agent_id: agentId,
+      actor_type: actorType,
+      from,
+      to,
+      cursor,
+      limit,
+    } = parsed.data;
     const result = await listAuditEventsAsync({
       eventType,
       conversationId,
@@ -936,7 +1011,7 @@ export const createApp = (): Hono => {
       from,
       to,
       cursor,
-      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      limit,
     });
 
     return new Response(JSON.stringify({ data: result.data, meta: { next_cursor: result.nextCursor } }), {
@@ -1108,9 +1183,22 @@ export const createApp = (): Hono => {
   });
 
   app.get("/api/v1/nodes/health", async (c) => {
-    const staleAfterSecRaw = c.req.query("stale_after_sec");
-    const staleAfterSec = staleAfterSecRaw ? Number(staleAfterSecRaw) : 30;
-    const staleAfterMs = (Number.isFinite(staleAfterSec) ? staleAfterSec : 30) * 1000;
+    const parsed = nodesHealthQuerySchema.safeParse({
+      stale_after_sec: c.req.query("stale_after_sec"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_nodes_health_query",
+            message: "Invalid nodes health query",
+          },
+        },
+        400,
+      );
+    }
+    const staleAfterSec = parsed.data.stale_after_sec ?? 30;
+    const staleAfterMs = staleAfterSec * 1000;
     const now = Date.now();
 
     const nodes = await listNodesAsync();
@@ -1136,7 +1224,7 @@ export const createApp = (): Hono => {
     return c.json(
       {
         data: {
-          stale_after_sec: Number.isFinite(staleAfterSec) ? staleAfterSec : 30,
+          stale_after_sec: staleAfterSec,
           summary,
           nodes: computed,
         },
@@ -1146,22 +1234,43 @@ export const createApp = (): Hono => {
   });
 
   app.get("/api/v1/usage/counters", async (c) => {
-    const actorId = c.req.query("actor_id");
-    const windowDaysRaw = c.req.query("window_days");
-    const windowDays = windowDaysRaw ? Number(windowDaysRaw) : 30;
-    const from = new Date(Date.now() - (Number.isFinite(windowDays) ? windowDays : 30) * 24 * 60 * 60 * 1000).toISOString();
+    const parsed = usageCountersQuerySchema.safeParse({
+      actor_id: c.req.query("actor_id"),
+      window_days: c.req.query("window_days"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_usage_counters_query",
+            message: "Invalid usage counters query",
+          },
+        },
+        400,
+      );
+    }
+
+    const actorId = parsed.data.actor_id;
+    const windowDays = parsed.data.window_days ?? 30;
+    const from = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
 
     const events = (await listAuditEventsAsync({ from, limit: 5000 })).data;
     const actorEvents = actorId ? events.filter((event) => event.actor_id === actorId) : events;
 
     const invocationEvents = actorEvents.filter((event) => event.event_type.startsWith("invocation."));
+    const eventTypeCounts = actorEvents.reduce<Record<string, number>>((acc, event) => {
+      acc[event.event_type] = (acc[event.event_type] ?? 0) + 1;
+      return acc;
+    }, {});
     return c.json(
       {
         data: {
           actor_id: actorId ?? null,
-          window_days: Number.isFinite(windowDays) ? windowDays : 30,
+          window_days: windowDays,
+          window_from: from,
           invocation_events_total: invocationEvents.length,
           audit_events_total: actorEvents.length,
+          event_type_counts: eventTypeCounts,
         },
       },
       200,
@@ -1208,6 +1317,18 @@ export const createApp = (): Hono => {
       localeBreakdown[locale][eventName] = (localeBreakdown[locale][eventName] ?? 0) + 1;
     }
 
+    const startBuildingCtaClicks = eventRows.filter(
+      (event) => event.event_type === "entry.cta_click" && event.payload.cta_id === "start_building",
+    ).length;
+    const pageViewHomeTotal = eventRows.filter(
+      (event) =>
+        event.event_type === "entry.page_view" &&
+        (event.payload.page === "home" ||
+          event.payload.page === "/en" ||
+          event.payload.page === "/zh-Hant" ||
+          event.payload.page === "/zh-Hans"),
+    ).length;
+
     return c.json(
       {
         data: {
@@ -1216,8 +1337,8 @@ export const createApp = (): Hono => {
           first_session_success_rate: metrics.first_session_success_rate,
           connected_nodes_total: metrics.connected_nodes_total,
           conversion_baseline: {
-            page_view_home: totals.page_view ?? 0,
-            cta_click_start_building: totals.cta_click ?? 0,
+            page_view_home: pageViewHomeTotal,
+            cta_click_start_building: startBuildingCtaClicks,
             docs_click: totals.docs_click ?? 0,
             waitlist_submit: totals.waitlist_submit ?? 0,
             demo_submit: totals.demo_submit ?? 0,
@@ -1230,13 +1351,31 @@ export const createApp = (): Hono => {
   });
 
   app.post("/api/v1/public/entry-events", async (c) => {
-    const payload = publicEntryEventSchema.parse(await c.req.json());
+    const rawBody = await c.req.json().catch(() => null);
+    const parsed = publicEntryEventSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_public_entry_event",
+            message: "Invalid public entry event payload",
+          },
+        },
+        400,
+      );
+    }
+    const payload = parsed.data;
     const eventType = `entry.${payload.event_name}`;
+    const normalizedPayload = {
+      ...payload,
+      referrer: payload.referrer ?? "unknown",
+      timestamp: payload.timestamp ?? new Date().toISOString(),
+    };
     await emitAuditEventAsync({
       eventType,
       actorType: "user",
       actorId: "public-entry",
-      payload,
+      payload: normalizedPayload,
       correlationId: randomUUID(),
     });
     return c.json({ data: { accepted: true, event_type: eventType } }, 202);
@@ -1248,6 +1387,17 @@ export const createApp = (): Hono => {
         data: {
           api_version: "v1",
           trust_policy_version: "trust-policy-v1",
+          node_protocol: {
+            min: "1.0.0",
+            recommended: "1.1.0",
+          },
+          quickstart_endpoints: [
+            "POST /api/v1/conversations",
+            "POST /api/v1/agents",
+            "POST /api/v1/conversations/:id/agents",
+            "POST /api/v1/conversations/:id/messages",
+            "GET /api/v1/metrics",
+          ],
           features: [
             "multi_agent_targeting",
             "review_queue",

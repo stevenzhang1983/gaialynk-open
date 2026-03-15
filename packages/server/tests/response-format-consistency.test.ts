@@ -83,6 +83,24 @@ describe("response format consistency", () => {
     expect(body.error).toHaveProperty("details");
   });
 
+  it("returns 400 validation_error for invalid request payload", async () => {
+    const app = createApp();
+
+    const response = await app.request("/api/v1/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "",
+        description: "missing fields",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+    expect(body.error).toHaveProperty("details");
+  });
+
   it("returns 502 when all targeted agents fail on A2A call", async () => {
     const app = createApp();
 
