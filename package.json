@@ -9,6 +9,9 @@
   "scripts": {
     "dev:server": "node --import tsx packages/server/src/index.ts",
     "dev:console": "python -m http.server 5173 -d packages/console",
+    "dev:website": "npm --prefix packages/website run dev",
+    "analytics:migrate:website": "npm --prefix packages/website run analytics:migrate",
+    "analytics:cleanup:website": "npm --prefix packages/website run analytics:cleanup",
     "demo:phase0": "./scripts/demo-phase0.sh",
     "db:migrate": "node --import tsx packages/server/src/infra/db/migrate.ts",
     "db:reset": "node --import tsx packages/server/src/infra/db/reset.ts",
@@ -17,12 +20,15 @@
     "bootstrap:pg:local": "./scripts/bootstrap-pg-local.sh",
     "release:preflight:mainline": "./scripts/mainline-preflight.sh",
     "release:smoke:mainline": "node --import tsx scripts/mainline-post-release-smoke.ts",
+    "release:weekly:ops-evidence:mainline": "./scripts/mainline-weekly-ops-evidence.sh",
     "contracts:drift:mainline": "node --import tsx scripts/mainline-contract-drift-report.ts",
+    "build:website": "npm --prefix packages/website run build",
     "test": "vitest run",
     "test:contracts:mainline": "vitest run packages/server/tests/mainline-contract-compatibility.test.ts",
     "test:pg": "vitest run packages/server/tests/postgres-integration.test.ts",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:website": "npm --prefix packages/website run typecheck"
   },
   "keywords": [],
   "author": "",

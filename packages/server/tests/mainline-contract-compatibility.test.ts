@@ -187,4 +187,76 @@ describe("mainline API contract compatibility guards", () => {
     const missingNodeBody = await missingNodeRelay.json();
     expect(missingNodeBody.error.code).toBe("node_not_found");
   });
+
+  it("guards one-click deployment support contracts and error codes", async () => {
+    const app = createApp();
+
+    const listTemplates = await app.request("/api/v1/deploy/templates");
+    expect(listTemplates.status).toBe(200);
+    const listTemplatesBody = await listTemplates.json();
+    expect(Array.isArray(listTemplatesBody.data)).toBe(true);
+    expect(listTemplatesBody.data.length).toBeGreaterThanOrEqual(1);
+
+    const instantiate = await app.request("/api/v1/deploy/templates/starter-assistant/instantiate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor_id: "contract-user-1",
+        agent_name: "Contract First Agent",
+      }),
+    });
+    expect(instantiate.status).toBe(201);
+    const instantiateBody = await instantiate.json();
+    expect(instantiateBody.data.status).toBe("provisioning");
+    expect(instantiateBody.meta.usage.feature).toBe("agent_deployments");
+    const deploymentId = instantiateBody.data.id as string;
+
+    const activate = await app.request(`/api/v1/deployments/${deploymentId}/activate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actor_id: "contract-user-1" }),
+    });
+    expect(activate.status).toBe(201);
+    const activateBody = await activate.json();
+    expect(activateBody.data.status).toBe("ready");
+    expect(activateBody.data.agent).toHaveProperty("id");
+
+    const secondActivate = await app.request(`/api/v1/deployments/${deploymentId}/activate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ actor_id: "contract-user-1" }),
+    });
+    expect(secondActivate.status).toBe(200);
+    const secondActivateBody = await secondActivate.json();
+    expect(secondActivateBody.meta.idempotent).toBe(true);
+
+    const limits = await app.request("/api/v1/usage/limits?actor_id=contract-user-1&feature=agent_deployments");
+    expect(limits.status).toBe(200);
+    const limitsBody = await limits.json();
+    expect(limitsBody.data.remaining).toBe(0);
+
+    const secondInstantiate = await app.request("/api/v1/deploy/templates/starter-assistant/instantiate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor_id: "contract-user-1",
+        agent_name: "Should Fail",
+      }),
+    });
+    expect(secondInstantiate.status).toBe(429);
+    const secondInstantiateBody = await secondInstantiate.json();
+    expect(secondInstantiateBody.error.code).toBe("quota_exceeded");
+
+    const missingTemplate = await app.request("/api/v1/deploy/templates/missing-template/instantiate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor_id: "contract-user-2",
+        agent_name: "Missing",
+      }),
+    });
+    expect(missingTemplate.status).toBe(404);
+    const missingTemplateBody = await missingTemplate.json();
+    expect(missingTemplateBody.error.code).toBe("template_not_found");
+  });
 });

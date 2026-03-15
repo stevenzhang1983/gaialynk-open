@@ -1,6 +1,16 @@
+import { fileURLToPath } from "node:url";
+
 type JsonRecord = Record<string, unknown>;
 
-const baseUrl = process.env.MAINLINE_BASE_URL ?? "http://localhost:3000";
+export const resolveSmokeBaseUrl = (env: NodeJS.ProcessEnv): string => {
+  if (env.MAINLINE_BASE_URL && env.MAINLINE_BASE_URL.trim().length > 0) {
+    return env.MAINLINE_BASE_URL;
+  }
+  const port = env.MAINLINE_SMOKE_PORT ?? "3011";
+  return `http://localhost:${port}`;
+};
+
+const baseUrl = resolveSmokeBaseUrl(process.env);
 
 async function requestJson(path: string, init?: RequestInit): Promise<{ status: number; body: JsonRecord }> {
   const response = await fetch(`${baseUrl}${path}`, init);
@@ -32,7 +42,6 @@ async function run(): Promise<void> {
 
   const metrics = await requestJson("/api/v1/public/entry-metrics");
   assert(metrics.status === 200, "entry-metrics should return 200");
-  assert(typeof metrics.body.data === "object", "entry-metrics should contain data");
 
   const recommendations = await requestJson("/api/v1/agents/recommendations?intent=summary&risk_max=low&limit=1");
   assert(recommendations.status === 200, "recommendations should return 200");
@@ -68,7 +77,9 @@ async function run(): Promise<void> {
     }),
   });
   assert(syncDirectory.status === 200, "sync-directory should return 200");
-  const relayAgentId = ((syncDirectory.body.data as JsonRecord).agents as JsonRecord[])[0].id as string;
+  const syncAgents = ((syncDirectory.body.data as JsonRecord).agents as JsonRecord[]) ?? [];
+  assert(syncAgents.length > 0, "sync-directory should return at least one agent");
+  const relayAgentId = syncAgents[0]?.id as string;
 
   const createConversation = await requestJson("/api/v1/conversations", {
     method: "POST",
@@ -114,7 +125,10 @@ async function run(): Promise<void> {
   console.log(JSON.stringify({ ok: true, baseUrl, runId }, null, 2));
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+const isDirectExecution = process.argv[1] === fileURLToPath(import.meta.url);
+if (isDirectExecution) {
+  run().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

@@ -14,6 +14,7 @@ const resetDatabase = async (): Promise<void> => {
       messages,
       participants,
       nodes,
+      deployment_records,
       agents,
       conversations
     RESTART IDENTITY CASCADE;
