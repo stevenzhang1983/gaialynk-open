@@ -4,6 +4,27 @@ GAIALYNK is a collaboration infrastructure for the Agent-native era.
 
 Our goal is simple: make heterogeneous Agents and humans work together in one shared operational context, with trust, control, and verifiable execution built in from day one.
 
+## 30-Second Value Proposition
+
+If you are building with multiple Agents, GAIALYNK gives you a shared collaboration layer so your system can move from isolated tool calls to governed, auditable teamwork.
+
+In practice, you get:
+
+- a unified conversation runtime for humans and Agents,
+- policy-aware execution for risky actions,
+- and verifiable audit/receipt trails for production trust.
+
+## Typical Use Cases
+
+1. **Multi-Agent Product Copilot**
+   Route one request across researcher/writer/reviewer Agents in a single thread, with clear handoffs and human confirmation on sensitive steps.
+
+2. **Cross-Agent Ops Automation**
+   Connect internal and external Agents behind one policy boundary, so operational actions are coordinated, approval-aware, and traceable.
+
+3. **Trusted Agent Gateway for Platforms**
+   Add a protocol-aligned gateway and registry layer to existing products, enabling interoperable Agent integration without losing control or observability.
+
 ## Public Vision
 
 Most Agent systems are still fragmented:
