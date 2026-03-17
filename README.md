@@ -72,6 +72,7 @@ See:
 ```bash
 npm install
 npm run dev:server
+npm run dev:website
 ```
 
 Common checks:
@@ -86,6 +87,24 @@ Website release gate checks:
 ```bash
 npm run release:gate:website
 ```
+
+## Contribution Map
+
+If you want to contribute quickly, start from one of these open-core tracks:
+
+- **Mainline APIs** (`packages/server`)
+  - conversation, trust policy, review queue, receipts, and observability baselines
+- **Website Experience** (`packages/website`)
+  - public narrative pages, entry funnel, SEO, and release-gate checks
+- **Quality & Safety**
+  - contract consistency, test coverage, and regression prevention in CI-friendly workflows
+
+## Good First Contribution Themes
+
+- improve failure recovery and fallback UX in user-facing flows,
+- strengthen policy reason codes and error clarity in APIs,
+- add focused tests for edge cases in trust/review/receipt workflows,
+- improve docs clarity for developer onboarding and architecture understanding.
 
 ## Join Us
 

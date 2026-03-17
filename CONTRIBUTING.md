@@ -1,4 +1,4 @@
-# Contributing to GAIALYNK Phase 0
+# Contributing to GaiaLynk
 
 Thanks for your interest in contributing.
 
@@ -8,6 +8,12 @@ Thanks for your interest in contributing.
 2. Create a feature branch from `main`.
 3. Make focused changes with tests.
 4. Open a pull request with clear context.
+
+## Where to Start
+
+- `packages/server`: open-core collaboration APIs, trust decisions, review workflows, receipts
+- `packages/website`: public narrative pages, entry funnel, analytics, and release gates
+- `docs/Agent-IM-Vision.md`: project vision and external narrative alignment
 
 ## Development Commands
 
@@ -23,6 +29,7 @@ npm run typecheck
 
 - Keep each PR scoped to one clear objective.
 - Add or update tests for behavior changes.
+- Avoid mixing product narrative changes with deep backend refactors in one PR.
 - Preserve API response shape consistency:
   - Success: `{ data, meta? }`
   - Error: `{ error: { code, message, details? } }`
