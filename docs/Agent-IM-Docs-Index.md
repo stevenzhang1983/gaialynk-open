@@ -13,6 +13,9 @@ This repository keeps only public-facing documents for vision, roadmap, and open
 3. `Agent-IM-Engineering-Open-Source-Boundary-Guide.md`  
    Engineering-level open-source boundary and contribution expectations.
 
+4. `Agent-IM-Product-Plan-Refinement-v1.md`  
+   Detailed product refinement for execution-level UX, A2A visualization, human review flow, and user stories.
+
 ## Architecture Decisions
 
 1. `ADR-0001-Receipt-Signing-Upgrade-Ed25519-JWS.md`
@@ -24,4 +27,4 @@ This repository keeps only public-facing documents for vision, roadmap, and open
 
 ---
 
-Internal execution plans, weekly reports, and process artifacts are maintained outside this public repository.
+Internal execution plans, weekly reports, and commercial operations artifacts are maintained outside this public repository.

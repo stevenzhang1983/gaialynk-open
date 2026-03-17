@@ -1,77 +1,73 @@
-# GAIALYNK
+# GaiaLynk
 
-GAIALYNK is a collaboration infrastructure for the Agent-native era.
+Build the trusted collaboration layer for the Agent Internet.
 
-Our goal is simple: make heterogeneous Agents and humans work together in one shared operational context, with trust, control, and verifiable execution built in from day one.
+GaiaLynk is not another single-agent app framework.  
+We are building a network where humans and heterogeneous agents can collaborate in one governed conversation space, with explicit trust decisions, human review, and verifiable receipts by default.
 
-## 30-Second Value Proposition
+## Why GAIALYNK Is Different
 
-If you are building with multiple Agents, GAIALYNK gives you a shared collaboration layer so your system can move from isolated tool calls to governed, auditable teamwork.
+Most agent projects optimize for raw capability. We optimize for reliable coordination in real environments.
 
-In practice, you get:
+- **Conversation-native network, not isolated tool calls**  
+  We model collaboration as persistent conversations across five topologies (`T1` to `T5`), from single user + single agent to delegated agent-to-agent execution.
+- **Trust as policy, not as marketing badge**  
+  Every invocation is evaluated as a decision (`allow / allow_limited / need_confirmation / deny`) with auditable reason codes.
+- **Human-in-the-loop where it actually matters**  
+  High-risk actions flow through review queues with explicit approve/deny paths and evidence traces.
+- **Proof over promises**  
+  Key actions generate signed receipts and append-only audit evidence for replay, governance, and accountability.
+- **Web-first, connector-extended product strategy**  
+  Keep onboarding lightweight in web while progressively unlocking local execution through explicit authorization boundaries.
 
-- a unified conversation runtime for humans and Agents,
-- policy-aware execution for risky actions,
-- and verifiable audit/receipt trails for production trust.
+## Product Direction (2026 Calibration)
 
-## Typical Use Cases
+We are aligning execution around one near-term product truth:
 
-1. **Multi-Agent Product Copilot**
-   Route one request across researcher/writer/reviewer Agents in a single thread, with clear handoffs and human confirmation on sensitive steps.
+**Let normal users describe a need and get useful results quickly, without learning agent protocols first.**
 
-2. **Cross-Agent Ops Automation**
-   Connect internal and external Agents behind one policy boundary, so operational actions are coordinated, approval-aware, and traceable.
+That means:
 
-3. **Trusted Agent Gateway for Platforms**
-   Add a protocol-aligned gateway and registry layer to existing products, enabling interoperable Agent integration without losing control or observability.
+1. Strengthen reliable supply of high-quality professional agents.
+2. Deliver a minimal consumer path (`Ask -> route -> result -> retry/fallback`).
+3. Keep trust/governance visible but layered:
+   - `L1` Result Layer (default)
+   - `L2` Process Layer
+   - `L3` Evidence Layer
 
-## Public Vision
+## What Is Live in Open Core Today
 
-Most Agent systems are still fragmented:
+This repository already includes a working mainline foundation:
 
-- tools do not speak the same protocol,
-- multi-agent workflows are hard to govern,
-- and high-risk actions lack clear accountability.
+- conversation APIs with human + agent participants,
+- agent registration, discovery, and recommendation baseline,
+- trust policy decisions and pending-confirmation invocation flow,
+- review queue approve/deny workflow,
+- audit event timeline and receipt verification,
+- node registration, heartbeat, and directory sync minimum loop,
+- public entry metrics endpoints for funnel and activation tracking.
 
-GAIALYNK addresses this by building a common collaboration layer where:
+## What Comes Next
 
-- `Agent-Agent` and `Agent-Human` collaboration happens in unified conversations,
-- execution is policy-aware (`allow / need_confirmation / deny`),
-- and key actions are traceable through auditable events and receipts.
+Near-term phases focus on:
 
-## What We Are Building
+- supply-side onboarding quality gates for public agent templates,
+- consumer-facing Ask flow and failover/rollback UX,
+- user-owned recurring task lifecycle (`create/pause/resume/delete/history`),
+- local connector governance (scoped permissions, revocation, action receipts),
+- deeper A2A visualization and evidence export for advanced users.
 
-GAIALYNK focuses on four core product pillars:
+## Open Core Boundary
 
-1. **Collaboration Runtime**  
-   Shared conversation and message flow for multi-party (human + agent) coordination.
+Open core includes protocol-aligned collaboration, trust baseline, and verification primitives.
 
-2. **Discovery and Interoperability**  
-   Agent registry and protocol-aligned gateway to connect diverse agent ecosystems.
+Managed cloud operations and selected advanced commercial capabilities remain outside this repository by design.
 
-3. **Trust and Control**  
-   Policy decisions, confirmation flows, and guardrails for higher-risk operations.
-
-4. **Auditability**  
-   Verifiable event trails and receipt-based evidence for operational confidence.
-
-## Open Core Scope
-
-This repository contains the public, open-core foundation:
-
-- conversation and messaging primitives,
-- agent discovery and registry capabilities,
-- A2A-aligned gateway and minimum interoperability surface,
-- trust policy baseline and confirmation path,
-- audit events and receipt verification,
-- Node-Hub minimum interfaces (`register / heartbeat / directory sync`).
-
-Managed operations and selected advanced commercial layers are intentionally separated from this public repository.
-
-## Public Docs
+See:
 
 - [OSS vs Cloud Capability Matrix](./docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md)
 - [Open Source Boundary Guide](./docs/Agent-IM-Engineering-Open-Source-Boundary-Guide.md)
+- [Public Docs Index](./docs/Agent-IM-Docs-Index.md)
 
 ## Quick Start
 
@@ -87,8 +83,16 @@ npm test
 npm run typecheck
 ```
 
-## Community
+Website release gate checks:
 
-- [Contributing Guide](./CONTRIBUTING.md)
-- [Security Policy](./SECURITY.md)
-- [Code of Conduct](./CODE_OF_CONDUCT.md)
+```bash
+npm run release:gate:website
+```
+
+## Join Us
+
+If you care about trustworthy multi-agent collaboration, cross-framework interoperability, and verifiable execution in production, we want your help.
+
+- Build with us: [Contributing Guide](./CONTRIBUTING.md)
+- Report issues responsibly: [Security Policy](./SECURITY.md)
+- Keep the community healthy: [Code of Conduct](./CODE_OF_CONDUCT.md)

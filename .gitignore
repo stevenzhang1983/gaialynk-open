@@ -7,3 +7,11 @@ dist/
 packages/website/.next/
 packages/website/tsconfig.tsbuildinfo
 .data/
+.worktrees/
+
+# Keep internal execution/commercial docs out of public sync
+docs/Agent-IM-CTO-Execution-Plan-v1.md
+docs/Agent-IM-Mainline-Team-Report.md
+docs/Agent-IM-Website-Team-Report.md
+docs/Agent-IM-Website-Copy-Compliance-Checklist.md
+docs/Agent-IM-Billing-and-Pricing-Draft-v1.md
