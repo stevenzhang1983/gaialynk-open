@@ -725,7 +725,7 @@ describe("phase1 mainline APIs", () => {
     const pendingBody = await pendingRes.json();
     const invocationId = pendingBody.meta.pending_invocations[0].invocation_id as string;
 
-    const queueRes = await app.request("/api/v1/review-queue");
+    const queueRes = await app.request("/api/v1/review-queue?actor_id=reviewer-1");
     expect(queueRes.status).toBe(200);
     const queueBody = await queueRes.json();
     expect(queueBody.data.some((item: { invocation_id: string }) => item.invocation_id === invocationId)).toBe(true);
@@ -982,5 +982,72 @@ describe("phase1 mainline APIs", () => {
       }),
     });
     expect(firstMessageRes.status).toBe(201);
+  });
+
+  it("exposes contract drift evidence summary endpoint", async () => {
+    const app = createApp();
+    const contractRes = await app.request("/api/v1/contracts/mainline-summary");
+    expect(contractRes.status).toBe(200);
+    const contractBody = await contractRes.json();
+    expect(contractBody.data.version).toBe("mainline-v1");
+    expect(Array.isArray(contractBody.data.routes)).toBe(true);
+    expect(contractBody.data.routes).toContain("POST /api/v1/ask");
+    expect(contractBody.data.routes).toContain("GET /api/v1/mainline/evidence");
+    expect(Array.isArray(contractBody.data.consumer_groups)).toBe(true);
+    expect(contractBody.data.consumer_groups).toContain("website");
+    expect(contractBody.data.contracts.a2a_visualization).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.version).toBe("a2a-visualization-v1");
+    expect(contractBody.data.contracts.a2a_visualization.success_example).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.error_examples.invalid_a2a_cursor).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.error_examples.a2a_cursor_context_mismatch).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.error_examples.a2a_cursor_anchor_mismatch).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.consumer_decision_matrix).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.has_more_true).toBe(
+      "show_load_more",
+    );
+    expect(contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.has_more_false).toBe(
+      "show_end_of_replay",
+    );
+    expect(
+      contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.recoverable_errors
+        .invalid_a2a_cursor,
+    ).toBe("reset_replay_session");
+    expect(
+      contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.recoverable_errors
+        .a2a_cursor_context_mismatch,
+    ).toBe("reset_replay_session");
+    expect(
+      contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.recoverable_errors
+        .a2a_cursor_anchor_mismatch,
+    ).toBe("reset_replay_session");
+    expect(
+      contractBody.data.contracts.a2a_visualization.consumer_decision_matrix.evaluation_priority,
+    ).toEqual(["recoverable_error_first", "then_has_more_state"]);
+    expect(contractBody.data.contracts.a2a_visualization.field_stability).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.schema_version).toBe(
+      "field-stability-v1",
+    );
+    expect(Array.isArray(contractBody.data.contracts.a2a_visualization.field_stability.deprecated_fields)).toBe(
+      true,
+    );
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.deprecation_template).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.deprecation_template).toEqual({
+      field: "string",
+      replacement: "string",
+      sunset_after: "ISO-8601",
+      migration_note: "string",
+    });
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.migration_hints).toBeDefined();
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.migration_hints.none).toBe(
+      "no_migration_required",
+    );
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.data_version).toBe("stable");
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.replay_anchor_ts).toBe("stable");
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.meta_next_cursor).toBe(
+      "stable",
+    );
+    expect(contractBody.data.contracts.a2a_visualization.field_stability.meta_remaining_items).toBe(
+      "stable",
+    );
   });
 });

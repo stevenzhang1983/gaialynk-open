@@ -304,6 +304,22 @@ export const getReceiptByIdAsync = async (receiptId: string): Promise<Receipt | 
   return rows[0] ?? null;
 };
 
+export const listReceiptsByAuditEventIdsAsync = async (
+  auditEventIds: string[],
+): Promise<Receipt[]> => {
+  if (!isPostgresEnabled()) {
+    return receipts.filter((r) => auditEventIds.includes(r.audit_event_id));
+  }
+  if (auditEventIds.length === 0) return [];
+  const rows = await query<Receipt>(
+    `SELECT id, audit_event_id, conversation_id, receipt_type, payload_hash, signature, signer, issued_at::text, prev_receipt_hash
+     FROM receipts
+     WHERE audit_event_id = ANY($1::text[])`,
+    [auditEventIds],
+  );
+  return rows;
+};
+
 export const verifyReceiptAsync = async (receipt: Receipt): Promise<boolean> => {
   if (!isPostgresEnabled()) {
     return verifyReceipt(receipt);

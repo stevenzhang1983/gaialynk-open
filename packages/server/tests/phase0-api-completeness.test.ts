@@ -201,6 +201,10 @@ describe("Phase0 API completeness", () => {
     expect(metricsBody.data).toHaveProperty("weekly_active_conversations");
     expect(metricsBody.data).toHaveProperty("first_session_success_rate");
     expect(metricsBody.data).toHaveProperty("connected_nodes_total");
+    expect(metricsBody.data).toHaveProperty("ttfr_ms");
+    expect(metricsBody.data).toHaveProperty("fallback_success_rate");
+    expect(metricsBody.data).toHaveProperty("subscription_task_stable_completion_rate");
+    expect(metricsBody.data).toHaveProperty("connector_overreach_block_rate");
     expect(metricsBody.data).toHaveProperty("go_no_go");
     expect(metricsBody.data.go_no_go).toHaveProperty("decision");
     expect(metricsBody.data.go_no_go).toHaveProperty("reasons");

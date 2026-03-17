@@ -33,8 +33,9 @@ export function buildAnalyticsHealthSnapshot(input: {
   retentionDays: number;
   maxIdleSeconds: number;
   minEvents24h: number;
+  nowMs?: number;
 }) {
-  const now = Date.now();
+  const now = input.nowMs ?? Date.now();
   const latest = input.events[input.events.length - 1];
   const lastReceivedAt = latest?.receivedAt || null;
   const idleSeconds = lastReceivedAt ? Math.floor((now - new Date(lastReceivedAt).getTime()) / 1000) : null;

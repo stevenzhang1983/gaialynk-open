@@ -6,8 +6,7 @@ const print = (message: string): void => {
 
 async function run(): Promise<void> {
   if (!targetBaseUrl) {
-    print("skip: MAINLINE_BASE_URL is not set");
-    return;
+    throw new Error("MAINLINE_BASE_URL is required for preflight target reachability check");
   }
 
   const controller = new AbortController();

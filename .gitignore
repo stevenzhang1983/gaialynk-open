@@ -11,8 +11,8 @@ packages/website/tsconfig.tsbuildinfo
 
 # Keep internal execution/commercial docs out of public sync
 docs/Agent-IM-CTO-Execution-Plan-v1.md
-docs/Agent-IM-Mainline-Team-Report.md
-docs/Agent-IM-Website-Team-Report.md
+docs/Agent-IM-Mainline-Team-Plan.md
+docs/Agent-IM-Website-Team-Plan.md
 docs/Agent-IM-Website-Copy-Compliance-Checklist.md
 docs/Agent-IM-Billing-and-Pricing-Draft-v1.md
 docs/Agent-IM-Product-Plan-Refinement-v1.md
@@ -23,3 +23,17 @@ docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md
 docs/ADR-0001-Receipt-Signing-Upgrade-Ed25519-JWS.md
 docs/ADR-0002-Audit-Append-Only-and-Query-Enhancement.md
 docs/contracts/mainline-api-contract-baseline.v1.json
+docs/Agent-IM-Mainline-Team-Launch-Closure-Checklist.md
+docs/Agent-IM-Website-Team-Launch-Closure-Checklist.md
+docs/Agent-IM-CTO-Launch-Integration-and-Deployment-Plan.md
+docs/Agent-IM-Staging-Go-NoGo-Conclusion.md
+docs/Agent-IM-CTO-Work-Progress-and-Next-Plan.md
+docs/Agent-IM-Mainline-Team-Plan-T1-T5-Completion-Summary.md
+docs/Agent-IM-Website-Team-Report.md
+docs/Agent-IM-Website-Launch-Closure-Implementation.md
+docs/Agent-IM-Website-Production-Deployment-Checklist.md
+docs/Agent-IM-IA-API-Contract.md
+docs/Agent-IM-Authorization-Matrix.md
+docs/Agent-IM-Environment-Checklist.md
+docs/Agent-IM-Environment-URLs.md
+reports/

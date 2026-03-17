@@ -8,6 +8,21 @@ const resetDatabase = async (): Promise<void> => {
 
   await pool.query(`
     TRUNCATE TABLE
+      ask_runs,
+      ask_sessions,
+      template_listing_applications,
+      local_action_receipts,
+      connector_authorizations,
+      disputes,
+      user_task_runs,
+      offline_run_queues,
+      user_task_instances,
+      template_quality_evaluations,
+      public_agent_templates,
+      publishers,
+      agent_run_feedback,
+      notification_events,
+      notification_preferences,
       receipts,
       audit_events,
       invocations,
@@ -18,6 +33,11 @@ const resetDatabase = async (): Promise<void> => {
       agents,
       conversations
     RESTART IDENTITY CASCADE;
+  `);
+  await pool.query(`
+    INSERT INTO publishers (id, identity_tier, created_at)
+    VALUES ('00000000-0000-0000-0000-000000000001', 'anonymous', NOW())
+    ON CONFLICT (id) DO NOTHING;
   `);
 
   console.log("database reset completed");

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AnalyticsProvider } from "@/components/analytics-provider";
 import { CookieBanner } from "@/components/cookie-banner";
+import { IdentityProvider } from "@/lib/identity/context";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -17,9 +18,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AnalyticsProvider />
-        {children}
-        <CookieBanner />
+        <IdentityProvider>
+          <AnalyticsProvider />
+          {children}
+          <CookieBanner />
+        </IdentityProvider>
       </body>
     </html>
   );

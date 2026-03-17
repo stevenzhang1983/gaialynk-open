@@ -40,6 +40,7 @@ describe("analytics health helpers", () => {
       retentionDays: 30,
       maxIdleSeconds: Number.MAX_SAFE_INTEGER,
       minEvents24h: 1,
+      nowMs: new Date("2026-03-15T00:10:00.000Z").getTime(),
     });
 
     expect(snapshot.driver).toBe("memory");

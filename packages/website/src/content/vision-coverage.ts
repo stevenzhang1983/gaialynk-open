@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/locales";
+import { NOW_CAPABILITY_PATHS } from "./now-capability-endpoints";
 
 export type CapabilityStatus = "Now" | "In Progress" | "Coming Soon" | "Research";
 export const CAPABILITY_STATUSES: CapabilityStatus[] = ["Now", "In Progress", "Coming Soon", "Research"];
@@ -12,12 +13,19 @@ export type VisionTrack = {
   requiredApiCapabilities: string[];
 };
 
+/** Now capabilities use endpoint from single source (now-capability-endpoints.ts). */
+const NOW_ENTRIES: Record<string, { status: "Now"; endpoint: string }> = Object.fromEntries(
+  Object.entries(NOW_CAPABILITY_PATHS).map(([key, endpoint]) => [key, { status: "Now" as const, endpoint }]),
+);
+
 export const PRODUCT_API_CAPABILITIES: Record<string, { status: CapabilityStatus; endpoint: string }> = {
-  conversations: { status: "Now", endpoint: "/api/v1/conversations" },
-  invocations: { status: "Now", endpoint: "/api/v1/invocations" },
-  receipts: { status: "Now", endpoint: "/api/v1/receipts/:id" },
-  reviewQueue: { status: "Now", endpoint: "/api/v1/invocations?status=pending_confirmation" },
-  nodes: { status: "Now", endpoint: "/api/v1/nodes" },
+  ...NOW_ENTRIES,
+  askRouteV1: { status: "In Progress", endpoint: "/api/v1/ask/route" },
+  fallbackActionsV1: { status: "In Progress", endpoint: "/api/v1/ask/fallback-actions" },
+  hitlActionsV1: { status: "In Progress", endpoint: "/api/v1/review-queue/actions" },
+  taskInstancesV1: { status: "Coming Soon", endpoint: "/api/v1/task-instances" },
+  connectorAuthV1: { status: "Coming Soon", endpoint: "/api/v1/connectors/authorizations" },
+  localActionReceiptsV1: { status: "Coming Soon", endpoint: "/api/v1/connectors/local-action-receipts" },
   managedCloudOrchestration: { status: "In Progress", endpoint: "/api/v1/cloud/orchestration" },
   revenueOpsAutomation: { status: "Research", endpoint: "/api/v1/automation/revenue-ops" },
 };
@@ -55,6 +63,38 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
       cta: "Join Waitlist",
       productPath: "/en/waitlist",
       requiredApiCapabilities: ["managedCloudOrchestration"],
+    },
+    {
+      track: "Ask Main Path",
+      pageModule: "Ask Path Demo",
+      status: "In Progress",
+      cta: "Explore Ask",
+      productPath: "/en/ask",
+      requiredApiCapabilities: ["askRouteV1"],
+    },
+    {
+      track: "Failure Recovery + HITL",
+      pageModule: "Recovery and HITL Page",
+      status: "In Progress",
+      cta: "Review Fallbacks",
+      productPath: "/en/recovery-hitl",
+      requiredApiCapabilities: ["fallbackActionsV1", "hitlActionsV1"],
+    },
+    {
+      track: "Recurring Task Lifecycle",
+      pageModule: "Subscriptions Value Page",
+      status: "Coming Soon",
+      cta: "See Lifecycle",
+      productPath: "/en/subscriptions",
+      requiredApiCapabilities: ["taskInstancesV1"],
+    },
+    {
+      track: "Connector Governance",
+      pageModule: "Connector Governance Page",
+      status: "Coming Soon",
+      cta: "View Controls",
+      productPath: "/en/connectors-governance",
+      requiredApiCapabilities: ["connectorAuthV1", "localActionReceiptsV1"],
     },
     {
       track: "Autonomous Business Ops",
@@ -107,6 +147,38 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
       requiredApiCapabilities: ["managedCloudOrchestration"],
     },
     {
+      track: "Ask 主路徑",
+      pageModule: "Ask 主路徑演示頁",
+      status: "In Progress",
+      cta: "查看 Ask",
+      productPath: "/zh-Hant/ask",
+      requiredApiCapabilities: ["askRouteV1"],
+    },
+    {
+      track: "失敗回退 + HITL",
+      pageModule: "回退與 HITL 說明頁",
+      status: "In Progress",
+      cta: "查看回退",
+      productPath: "/zh-Hant/recovery-hitl",
+      requiredApiCapabilities: ["fallbackActionsV1", "hitlActionsV1"],
+    },
+    {
+      track: "訂閱任務生命週期",
+      pageModule: "訂閱任務價值頁",
+      status: "Coming Soon",
+      cta: "查看生命週期",
+      productPath: "/zh-Hant/subscriptions",
+      requiredApiCapabilities: ["taskInstancesV1"],
+    },
+    {
+      track: "連接器治理",
+      pageModule: "連接器治理頁",
+      status: "Coming Soon",
+      cta: "查看控制面",
+      productPath: "/zh-Hant/connectors-governance",
+      requiredApiCapabilities: ["connectorAuthV1", "localActionReceiptsV1"],
+    },
+    {
       track: "自主業務協作場景",
       pageModule: "Use Cases 擴展",
       status: "Research",
@@ -155,6 +227,38 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
       cta: "加入等待名单",
       productPath: "/zh-Hans/waitlist",
       requiredApiCapabilities: ["managedCloudOrchestration"],
+    },
+    {
+      track: "Ask 主路径",
+      pageModule: "Ask 主路径演示页",
+      status: "In Progress",
+      cta: "查看 Ask",
+      productPath: "/zh-Hans/ask",
+      requiredApiCapabilities: ["askRouteV1"],
+    },
+    {
+      track: "失败回退 + HITL",
+      pageModule: "回退与 HITL 说明页",
+      status: "In Progress",
+      cta: "查看回退",
+      productPath: "/zh-Hans/recovery-hitl",
+      requiredApiCapabilities: ["fallbackActionsV1", "hitlActionsV1"],
+    },
+    {
+      track: "订阅任务生命周期",
+      pageModule: "订阅任务价值页",
+      status: "Coming Soon",
+      cta: "查看生命周期",
+      productPath: "/zh-Hans/subscriptions",
+      requiredApiCapabilities: ["taskInstancesV1"],
+    },
+    {
+      track: "连接器治理",
+      pageModule: "连接器治理页",
+      status: "Coming Soon",
+      cta: "查看控制面",
+      productPath: "/zh-Hans/connectors-governance",
+      requiredApiCapabilities: ["connectorAuthV1", "localActionReceiptsV1"],
     },
     {
       track: "自主业务协作场景",

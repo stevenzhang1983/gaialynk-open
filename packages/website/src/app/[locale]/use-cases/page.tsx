@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CtaLink } from "@/components/cta-link";
 import { StatusBadge } from "@/components/status-badge";
 import { getDictionary } from "@/content/dictionaries";
 import type { Locale } from "@/lib/i18n/locales";
+import { buildEntryPageMetadata } from "@/lib/seo/entry-page-metadata";
 
 const USE_CASES = ["multi-agent-dev", "high-risk-approval", "node-collaboration", "autonomous-revenue-ops"] as const;
 
@@ -12,83 +14,93 @@ const CASE_COPY: Record<
 > = {
   en: {
     "multi-agent-dev": {
-      title: "Multi-agent development collaboration",
-      description: "Coordinate coding, review, and deployment actions under shared trust rules.",
-      evidence: "Receipt-linked execution for each delegated step.",
+      title: "Ask once, route to specialist agents",
+      description: "One user request is routed to the right specialist agents without exposing protocol complexity.",
+      evidence: "Result summary plus traceable invocation path in one view.",
       status: "Now",
     },
     "high-risk-approval": {
       title: "High-risk approval workflow",
-      description: "Gate sensitive operations with review queue and explicit human confirmation.",
-      evidence: "Audit trail across request, decision, and confirmation.",
+      description: "Sensitive actions are gated by policy, review queue, and explicit human confirmation.",
+      evidence: "Decision reason codes and receipts link every approval step.",
       status: "Now",
     },
     "node-collaboration": {
-      title: "Node onboarding and cross-boundary execution",
-      description: "Connect distributed nodes while preserving policy and governance boundaries.",
-      evidence: "Directory sync and traceable invocation origins.",
+      title: "Cross-node trusted collaboration",
+      description: "Connect distributed nodes while preserving trust boundaries and governance controls.",
+      evidence: "Directory sync plus traceable invocation origin per node.",
       status: "Now",
     },
     "autonomous-revenue-ops": {
-      title: "Autonomous revenue operations",
-      description: "Coordinate pipeline updates, risk checks, and pricing suggestions with policy guardrails.",
-      evidence: "Exploration stage for post-MVP growth automation.",
+      title: "Recurring automation and growth operations",
+      description: "Move from one-time asks to recurring, policy-governed automation tasks.",
+      evidence: "Currently in research for post-MVP expansion.",
       status: "Research",
     },
   },
   "zh-Hant": {
     "multi-agent-dev": {
-      title: "多 Agent 開發協作",
-      description: "在共享信任規則下協調編碼、覆核與部署任務。",
-      evidence: "每個委派步驟都可對應收據。",
+      title: "一次提需求，自動路由給專業 Agent",
+      description: "同一個使用者需求可自動分配給合適 Agent，無需理解協議細節。",
+      evidence: "結果摘要與可追蹤調用路徑同時可見。",
       status: "Now",
     },
     "high-risk-approval": {
       title: "高風險動作審批流程",
-      description: "敏感操作先進入待確認佇列，再由人工明確確認。",
-      evidence: "請求、判定、確認三段皆可稽核追溯。",
+      description: "敏感操作先經策略判定，再進入待確認佇列完成人工覆核。",
+      evidence: "每一步都有決策理由與收據證據可追溯。",
       status: "Now",
     },
     "node-collaboration": {
-      title: "節點接入與跨邊界協作",
-      description: "連接分散節點，同時維持策略與治理邊界。",
-      evidence: "目錄同步與調用來源可追蹤。",
+      title: "跨節點可信協作",
+      description: "連接分散節點，同時維持信任邊界與治理控制。",
+      evidence: "目錄同步並可追蹤每次調用來源節點。",
       status: "Now",
     },
     "autonomous-revenue-ops": {
-      title: "自主營收運營",
-      description: "在策略護欄下協調管線更新、風險檢查與定價建議。",
+      title: "週期自動化與增長運營",
+      description: "從一次性需求延伸到可週期執行、可治理的自動化任務。",
       evidence: "目前為 post-MVP 探索階段。",
       status: "Research",
     },
   },
   "zh-Hans": {
     "multi-agent-dev": {
-      title: "多 Agent 开发协作",
-      description: "在共享信任规则下协同编码、评审与部署任务。",
-      evidence: "每个委派步骤都可关联收据。",
+      title: "一次提需求，自动路由给专业 Agent",
+      description: "同一个用户需求可自动分配给合适 Agent，无需理解协议细节。",
+      evidence: "结果摘要与可追踪调用路径同时可见。",
       status: "Now",
     },
     "high-risk-approval": {
       title: "高风险动作审批流程",
-      description: "敏感操作先进入待确认队列，再由人工明确确认。",
-      evidence: "请求、判定、确认三段均可审计追溯。",
+      description: "敏感操作先经策略判定，再进入待确认队列完成人工复核。",
+      evidence: "每一步都有决策理由与收据证据可追溯。",
       status: "Now",
     },
     "node-collaboration": {
-      title: "节点接入与跨边界协作",
-      description: "连接分布式节点，同时保持策略与治理边界。",
-      evidence: "目录同步与调用来源可追踪。",
+      title: "跨节点可信协作",
+      description: "连接分布式节点，同时保持信任边界与治理控制。",
+      evidence: "目录同步并可追踪每次调用来源节点。",
       status: "Now",
     },
     "autonomous-revenue-ops": {
-      title: "自主营收运营",
-      description: "在策略护栏下协同管线更新、风险检查与定价建议。",
+      title: "周期自动化与增长运营",
+      description: "从一次性需求延伸到可周期执行、可治理的自动化任务。",
       evidence: "当前为 post-MVP 探索阶段。",
       status: "Research",
     },
   },
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: Locale }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const copy = getDictionary(locale).useCases;
+  return buildEntryPageMetadata({ locale, routeSegment: "use-cases", copy });
+}
 
 export default async function UseCasesPage({
   params,
@@ -99,6 +111,20 @@ export default async function UseCasesPage({
   const dict = getDictionary(locale);
   const copy = dict.useCases;
   const cards = CASE_COPY[locale];
+  const lanes = {
+    en: [
+      { href: "/ask", title: "Temporary Needs", desc: "Ask once, route quickly, recover safely.", status: "In Progress" as const },
+      { href: "/subscriptions", title: "Daily Needs", desc: "Recurring tasks with lifecycle and governance.", status: "Coming Soon" as const },
+    ],
+    "zh-Hant": [
+      { href: "/ask", title: "臨時需求", desc: "一次提問、快速路由、可恢復回退。", status: "In Progress" as const },
+      { href: "/subscriptions", title: "日常需求", desc: "以生命週期與治理承接週期任務。", status: "Coming Soon" as const },
+    ],
+    "zh-Hans": [
+      { href: "/ask", title: "临时需求", desc: "一次提问、快速路由、可恢复回退。", status: "In Progress" as const },
+      { href: "/subscriptions", title: "日常需求", desc: "以生命周期与治理承接周期任务。", status: "Coming Soon" as const },
+    ],
+  }[locale];
 
   return (
     <section className="space-y-10">
@@ -127,7 +153,33 @@ export default async function UseCasesPage({
         })}
       </div>
 
-      <CtaLink primary href={`/${locale}/developers`}>
+      <div className="grid gap-4 md:grid-cols-2">
+        {lanes.map((lane) => (
+          <Link
+            key={lane.href}
+            href={`/${locale}${lane.href}`}
+            className="rounded-xl border border-border bg-card p-5 hover:border-primary"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">{lane.title}</h2>
+              <StatusBadge status={lane.status} />
+            </div>
+            <p className="mt-2 text-sm text-muted">{lane.desc}</p>
+          </Link>
+        ))}
+      </div>
+
+      <CtaLink
+        primary
+        href={`/${locale}/developers`}
+        eventName="cta_click"
+        eventPayload={{
+          locale,
+          page: "use_cases",
+          referrer: "internal",
+          cta_id: "try_workflow_start_building",
+        }}
+      >
         {copy.primaryCta}
       </CtaLink>
     </section>

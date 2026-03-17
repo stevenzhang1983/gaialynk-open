@@ -3,12 +3,21 @@ import { isPostgresEnabled, query } from "../../infra/db/client";
 
 export type ConversationState = "active" | "archived" | "closed";
 
+export type ConversationTopology = "T1" | "T2" | "T3" | "T4" | "T5";
+export type AuthorizationMode = "user_explicit" | "policy_based" | "delegated";
+export type VisibilityMode = "full" | "summarized" | "restricted";
+export type ConversationRiskLevel = "low" | "medium" | "high" | "critical";
+
 export interface Conversation {
   id: string;
   title: string;
   state: ConversationState;
   created_at: string;
   updated_at: string;
+  conversation_topology?: ConversationTopology;
+  authorization_mode?: AuthorizationMode;
+  visibility_mode?: VisibilityMode;
+  risk_level?: ConversationRiskLevel;
 }
 
 export interface Participant {
@@ -56,18 +65,30 @@ const messagesByConversation = new Map<string, Message[]>();
 
 const nowIso = (): string => new Date().toISOString();
 
-export const createConversation = (title: string): Conversation => {
+export interface CreateConversationInput {
+  title: string;
+  conversation_topology?: ConversationTopology;
+  authorization_mode?: AuthorizationMode;
+  visibility_mode?: VisibilityMode;
+  risk_level?: ConversationRiskLevel;
+}
+
+export const createConversation = (input: string | CreateConversationInput): Conversation => {
   if (isPostgresEnabled()) {
     throw new Error("Use createConversationAsync in PostgreSQL mode");
   }
-
+  const opts = typeof input === "string" ? { title: input } : input;
   const timestamp = nowIso();
   const conversation: Conversation = {
     id: randomUUID(),
-    title,
+    title: opts.title,
     state: "active",
     created_at: timestamp,
     updated_at: timestamp,
+    conversation_topology: opts.conversation_topology ?? "T1",
+    authorization_mode: opts.authorization_mode ?? "user_explicit",
+    visibility_mode: opts.visibility_mode ?? "full",
+    risk_level: opts.risk_level ?? "low",
   };
 
   conversations.set(conversation.id, conversation);
@@ -77,23 +98,45 @@ export const createConversation = (title: string): Conversation => {
   return conversation;
 };
 
-export const createConversationAsync = async (title: string): Promise<Conversation> => {
+export const createConversationAsync = async (
+  input: string | CreateConversationInput,
+): Promise<Conversation> => {
+  const opts = typeof input === "string" ? { title: input } : input;
+  const topology = opts.conversation_topology ?? "T1";
+  const authMode = opts.authorization_mode ?? "user_explicit";
+  const visibility = opts.visibility_mode ?? "full";
+  const riskLevel = opts.risk_level ?? "low";
+
   if (!isPostgresEnabled()) {
-    return createConversation(title);
+    return createConversation(opts);
   }
 
   const conversation: Conversation = {
     id: randomUUID(),
-    title,
+    title: opts.title,
     state: "active",
     created_at: nowIso(),
     updated_at: nowIso(),
+    conversation_topology: topology,
+    authorization_mode: authMode,
+    visibility_mode: visibility,
+    risk_level: riskLevel,
   };
 
   await query(
-    `INSERT INTO conversations (id, title, state, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [conversation.id, conversation.title, conversation.state, conversation.created_at, conversation.updated_at],
+    `INSERT INTO conversations (id, title, state, created_at, updated_at, conversation_topology, authorization_mode, visibility_mode, risk_level)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      conversation.id,
+      conversation.title,
+      conversation.state,
+      conversation.created_at,
+      conversation.updated_at,
+      topology,
+      authMode,
+      visibility,
+      riskLevel,
+    ],
   );
 
   return conversation;
@@ -104,11 +147,29 @@ export const listConversations = async (): Promise<Conversation[]> => {
     return [...conversations.values()];
   }
 
-  return query<Conversation>(
-    `SELECT id, title, state, created_at::text, updated_at::text
+  const rows = await query<
+    Conversation & {
+      conversation_topology?: string;
+      authorization_mode?: string;
+      visibility_mode?: string;
+      risk_level?: string;
+    }
+  >(
+    `SELECT id, title, state, created_at::text, updated_at::text,
+            COALESCE(conversation_topology, 'T1') AS conversation_topology,
+            COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
+            COALESCE(visibility_mode, 'full') AS visibility_mode,
+            COALESCE(risk_level, 'low') AS risk_level
      FROM conversations
      ORDER BY created_at DESC`,
   );
+  return rows.map((r) => ({
+    ...r,
+    conversation_topology: (r.conversation_topology ?? "T1") as ConversationTopology,
+    authorization_mode: (r.authorization_mode ?? "user_explicit") as AuthorizationMode,
+    visibility_mode: (r.visibility_mode ?? "full") as VisibilityMode,
+    risk_level: (r.risk_level ?? "low") as ConversationRiskLevel,
+  }));
 };
 
 export const getConversationDetail = (
@@ -134,17 +195,35 @@ export const getConversationDetailAsync = async (
     return getConversationDetail(conversationId);
   }
 
-  const conversationsRows = await query<Conversation>(
-    `SELECT id, title, state, created_at::text, updated_at::text
+  const conversationsRows = await query<
+    Conversation & {
+      conversation_topology?: string;
+      authorization_mode?: string;
+      visibility_mode?: string;
+      risk_level?: string;
+    }
+  >(
+    `SELECT id, title, state, created_at::text, updated_at::text,
+            COALESCE(conversation_topology, 'T1') AS conversation_topology,
+            COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
+            COALESCE(visibility_mode, 'full') AS visibility_mode,
+            COALESCE(risk_level, 'low') AS risk_level
      FROM conversations
      WHERE id = $1`,
     [conversationId],
   );
 
-  const conversation = conversationsRows[0];
-  if (!conversation) {
+  const row = conversationsRows[0];
+  if (!row) {
     return null;
   }
+  const conversation: Conversation = {
+    ...row,
+    conversation_topology: (row.conversation_topology ?? "T1") as ConversationTopology,
+    authorization_mode: (row.authorization_mode ?? "user_explicit") as AuthorizationMode,
+    visibility_mode: (row.visibility_mode ?? "full") as VisibilityMode,
+    risk_level: (row.risk_level ?? "low") as ConversationRiskLevel,
+  };
 
   const participants = await query<Participant>(
     `SELECT id, conversation_id, participant_type, participant_id, role, joined_at::text

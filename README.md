@@ -82,11 +82,13 @@ npm test
 npm run typecheck
 ```
 
-Website release gate checks:
+Website release gate checks (typecheck + governance tests, including promise consistency and API health for "Now" capabilities):
 
 ```bash
 npm run release:gate:website
 ```
+
+When the mainline server is not running (e.g. CI), set `RELEASE_GATE_SKIP_API_HEALTH=1` to skip live API health checks so the gate can still pass.
 
 ## Contribution Map
 
@@ -105,6 +107,37 @@ If you want to contribute quickly, start from one of these open-core tracks:
 - strengthen policy reason codes and error clarity in APIs,
 - add focused tests for edge cases in trust/review/receipt workflows,
 - improve docs clarity for developer onboarding and architecture understanding.
+
+## Founder Note
+
+Hi, I’m Steven.
+
+I have zero professional background in software engineering.  
+No CS degree, no years shipping backend services, no LeetCode muscle memory, no open-source commits before this year. Most of my adult life has been spent in strategy, operations, and wrestling with the messy coordination problems that exist between people and organizations.
+
+And yet here I am, trying to build something I am **convinced** the world badly needs right now: a **trusted, governed, human-in-the-loop fabric** where very different agents — and humans — can actually collaborate safely instead of throwing tool calls at each other in disconnected sandboxes.
+
+Why now? Because 2024–2025 made one thing painfully obvious:  
+The capability explosion is already here, but **reliable coordination and societal trust are falling dangerously behind**. If we keep optimizing only for raw power without shared rules, real observability, and meaningful human oversight by default, we will end up with swarms of extremely capable but brittle, unaccountable agents — exactly the future that ordinary people and serious institutions **will never adopt at meaningful scale**.
+
+I cannot build this vision by myself. I know that very clearly.  
+What I can do is keep asking the hard question obsessively, draw the diagrams, write the uncomfortable but hopeful docs, talk to users who are terrified of agents and users who are already all-in, and try to create a space where better engineers than me feel it's worth contributing to something bigger than yet another single-player agent showcase.
+
+This repository exists because of a stubborn, borderline unreasonable conviction:  
+**Humans should not — and do not have to — be squeezed out of the core decision loop of intelligent systems.**  
+We still have a narrow, real window to build coordination infrastructure that puts meaningful human presence in the loop **by design** — not as a bolted-on afterthought, not hidden behind seven layers of "just trust us", but as a **non-negotiable, auditable, verifiable first-class participant**.  
+This is not a nice-to-have. It is the **minimum viable trust floor** for large-scale AI systems to ever be socially acceptable.
+
+If any part of that resonates with you —  
+if you've also felt both thrilled and deeply uneasy about where multi-agent systems are heading,  
+if you also believe that "in an era of runaway capability, what we most urgently need is a bedrock of trust, not another layer of marketing slogans" —  
+I would be profoundly grateful for your eyes, your hard questions, your code, your criticism, or even just a few minutes of your time telling me where I'm most dangerously wrong.
+
+Thank you for reading this far.  
+Let's try to build something that is **genuinely worthy of trust — and that can withstand the test of time**.
+
+— Steven  
+March 2026 China
 
 ## Join Us
 
