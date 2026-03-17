@@ -65,8 +65,7 @@ Managed cloud operations and selected advanced commercial capabilities remain ou
 
 See:
 
-- [OSS vs Cloud Capability Matrix](./docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md)
-- [Open Source Boundary Guide](./docs/Agent-IM-Engineering-Open-Source-Boundary-Guide.md)
+- [GaiaLynk Vision](./docs/Agent-IM-Vision.md)
 
 ## Quick Start
 

@@ -17,3 +17,9 @@ docs/Agent-IM-Website-Copy-Compliance-Checklist.md
 docs/Agent-IM-Billing-and-Pricing-Draft-v1.md
 docs/Agent-IM-Product-Plan-Refinement-v1.md
 docs/Agent-IM-Docs-Index.md
+docs/Agent-IM-Product-Plan.md
+docs/Agent-IM-Engineering-Open-Source-Boundary-Guide.md
+docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md
+docs/ADR-0001-Receipt-Signing-Upgrade-Ed25519-JWS.md
+docs/ADR-0002-Audit-Append-Only-and-Query-Enhancement.md
+docs/contracts/mainline-api-contract-baseline.v1.json
