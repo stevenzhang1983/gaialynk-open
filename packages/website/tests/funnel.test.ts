@@ -46,6 +46,13 @@ describe("funnel snapshot", () => {
       ],
       "en",
       now,
+      undefined,
+      undefined,
+      {
+        minAskToRecoveryPct: 50,
+        minRecoveryToSubscriptionsPct: 40,
+        minSubscriptionsToWaitlistPct: 30,
+      },
     );
 
     expect(snapshot.counts.homeViews).toBe(1);
@@ -60,6 +67,8 @@ describe("funnel snapshot", () => {
     expect(snapshot.suspectedEvents).toBe(1);
     expect(snapshot.suspectedTrafficSharePct).toBeGreaterThan(0);
     expect(snapshot.suspectedByHour24h).toHaveLength(24);
+    expect(snapshot.pathFunnel.homeViews).toBe(1);
+    expect(snapshot.pathFunnel.askViews).toBe(0);
     const recentBucket = snapshot.suspectedByHour24h[snapshot.suspectedByHour24h.length - 1];
     expect(recentBucket?.total).toBe(3);
     expect(recentBucket?.suspected).toBe(1);
@@ -205,5 +214,87 @@ describe("funnel snapshot", () => {
       },
     );
     expect(snapshot.localeGapAlerts.length).toBe(0);
+  });
+
+  test("builds entry path funnel metrics", () => {
+    const now = new Date("2026-01-01T01:00:00Z").getTime();
+    const snapshot = buildFunnelSnapshot(
+      [
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en", referrer: "direct", timestamp: "2026-01-01T00:00:00Z" },
+          receivedAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en/ask", referrer: "internal", timestamp: "2026-01-01T00:01:00Z" },
+          receivedAt: "2026-01-01T00:01:00Z",
+        },
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en/recovery-hitl", referrer: "internal", timestamp: "2026-01-01T00:02:00Z" },
+          receivedAt: "2026-01-01T00:02:00Z",
+        },
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en/subscriptions", referrer: "internal", timestamp: "2026-01-01T00:03:00Z" },
+          receivedAt: "2026-01-01T00:03:00Z",
+        },
+        {
+          name: "waitlist_submit",
+          payload: { locale: "en", page: "waitlist", referrer: "internal", timestamp: "2026-01-01T00:04:00Z" },
+          receivedAt: "2026-01-01T00:04:00Z",
+        },
+      ],
+      "en",
+      now,
+      undefined,
+      undefined,
+      {
+        minAskToRecoveryPct: 50,
+        minRecoveryToSubscriptionsPct: 40,
+        minSubscriptionsToWaitlistPct: 30,
+      },
+    );
+
+    expect(snapshot.pathFunnel.homeViews).toBe(1);
+    expect(snapshot.pathFunnel.askViews).toBe(1);
+    expect(snapshot.pathFunnel.recoveryViews).toBe(1);
+    expect(snapshot.pathFunnel.subscriptionsViews).toBe(1);
+    expect(snapshot.pathFunnel.waitlistSubmits).toBe(1);
+    expect(snapshot.pathFunnel.rates.homeToAsk).toBe(100);
+    expect(snapshot.pathFunnel.rates.askToRecovery).toBe(100);
+    expect(snapshot.pathFunnel.rates.recoveryToSubscriptions).toBe(100);
+    expect(snapshot.pathFunnel.rates.subscriptionsToWaitlist).toBe(100);
+  });
+
+  test("emits entry path alerts when stage conversion falls below thresholds", () => {
+    const now = new Date("2026-01-01T01:00:00Z").getTime();
+    const snapshot = buildFunnelSnapshot(
+      [
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en", referrer: "direct", timestamp: "2026-01-01T00:00:00Z" },
+          receivedAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          name: "page_view",
+          payload: { locale: "en", page: "/en/ask", referrer: "internal", timestamp: "2026-01-01T00:01:00Z" },
+          receivedAt: "2026-01-01T00:01:00Z",
+        },
+      ],
+      "en",
+      now,
+      undefined,
+      undefined,
+      {
+        minAskToRecoveryPct: 50,
+        minRecoveryToSubscriptionsPct: 40,
+        minSubscriptionsToWaitlistPct: 30,
+      },
+    );
+    expect(snapshot.pathFunnel.alerts.map((item) => item.code)).toContain("LOW_ASK_TO_RECOVERY");
+    expect(snapshot.pathFunnel.alerts.map((item) => item.code)).toContain("LOW_RECOVERY_TO_SUBSCRIPTIONS");
+    expect(snapshot.pathFunnel.alerts.map((item) => item.code)).toContain("LOW_SUBSCRIPTIONS_TO_WAITLIST");
   });
 });

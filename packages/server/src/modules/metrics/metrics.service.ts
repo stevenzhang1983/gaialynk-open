@@ -23,6 +23,10 @@ export interface Phase0Metrics {
   weekly_active_conversations: number;
   first_session_success_rate: number;
   connected_nodes_total: number;
+  ttfr_ms: number;
+  fallback_success_rate: number;
+  subscription_task_stable_completion_rate: number;
+  connector_overreach_block_rate: number;
   go_no_go: {
     decision: "go" | "hold";
     reasons: string[];
@@ -118,6 +122,25 @@ export const getPhase0Metrics = async (): Promise<Phase0Metrics> => {
   );
   const firstSessionSuccessRate = toRatio(successfulConversationIds.size, conversations.length);
   const connectedNodesTotal = (await listNodesAsync()).length;
+  let ttfrTotal = 0;
+  let ttfrSamples = 0;
+  for (const conversation of conversations) {
+    const detail = await getConversationDetailAsync(conversation.id);
+    if (!detail) {
+      continue;
+    }
+    const firstUser = detail.messages.find((message) => message.sender_type === "user");
+    const firstAgent = detail.messages.find((message) => message.sender_type === "agent");
+    if (!firstUser || !firstAgent) {
+      continue;
+    }
+    const diff = Date.parse(firstAgent.created_at) - Date.parse(firstUser.created_at);
+    if (Number.isFinite(diff) && diff >= 0) {
+      ttfrTotal += diff;
+      ttfrSamples += 1;
+    }
+  }
+  const ttfrMs = ttfrSamples === 0 ? 0 : Math.round(ttfrTotal / ttfrSamples);
 
   const byCorrelation = new Map<string, Set<string>>();
   for (const event of events) {
@@ -150,6 +173,22 @@ export const getPhase0Metrics = async (): Promise<Phase0Metrics> => {
     completedEvents.length,
   );
   const auditEventCoverageRatio = toRatio(coveredCompleted, completedEvents.length);
+  const fallbackAttempted = events.filter((event) => event.event_type === "ask.fallback.attempted").length;
+  const fallbackCompleted = events.filter((event) => event.event_type === "ask.fallback.completed").length;
+  const fallbackSuccessRate = toRatio(fallbackCompleted, fallbackAttempted);
+  const taskRunCompleted = events.filter((event) => event.event_type === "user_task.run.completed").length;
+  const taskRunFailed = events.filter((event) => event.event_type === "user_task.run.failed").length;
+  const subscriptionTaskStableCompletionRate = toRatio(taskRunCompleted, taskRunCompleted + taskRunFailed);
+  const connectorBlocked = events.filter(
+    (event) =>
+      event.event_type === "connector.local_action.blocked_overreach" ||
+      event.event_type === "connector.local_action.blocked_scope" ||
+      event.event_type === "connector.local_action.blocked_connector_mismatch",
+  ).length;
+  const connectorCompleted = events.filter(
+    (event) => event.event_type === "connector.local_action.completed",
+  ).length;
+  const connectorOverreachBlockRate = toRatio(connectorBlocked, connectorBlocked + connectorCompleted);
 
   const goNoGoReasons: string[] = [];
   if (weeklyTrustedInvocations < 1) {
@@ -164,6 +203,18 @@ export const getPhase0Metrics = async (): Promise<Phase0Metrics> => {
   if (auditEventCoverageRatio < 0.95) {
     goNoGoReasons.push("audit_event_coverage_ratio_below_threshold");
   }
+  if (ttfrMs > 180000) {
+    goNoGoReasons.push("ttfr_above_threshold");
+  }
+  if (fallbackSuccessRate < 0.5) {
+    goNoGoReasons.push("fallback_success_rate_below_threshold");
+  }
+  if (subscriptionTaskStableCompletionRate < 0.95) {
+    goNoGoReasons.push("subscription_task_completion_rate_below_threshold");
+  }
+  if (connectorOverreachBlockRate < 0.5) {
+    goNoGoReasons.push("connector_overreach_block_rate_below_threshold");
+  }
 
   return {
     invocation_total: invocationTotal,
@@ -177,6 +228,10 @@ export const getPhase0Metrics = async (): Promise<Phase0Metrics> => {
     weekly_active_conversations: weeklyActiveConversations,
     first_session_success_rate: firstSessionSuccessRate,
     connected_nodes_total: connectedNodesTotal,
+    ttfr_ms: ttfrMs,
+    fallback_success_rate: fallbackSuccessRate,
+    subscription_task_stable_completion_rate: subscriptionTaskStableCompletionRate,
+    connector_overreach_block_rate: connectorOverreachBlockRate,
     go_no_go: {
       decision: goNoGoReasons.length === 0 ? "go" : "hold",
       reasons: goNoGoReasons,

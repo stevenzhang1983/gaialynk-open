@@ -40,6 +40,15 @@ type FunnelAlert = {
   message: string;
 };
 
+type PathAlertCode = "LOW_ASK_TO_RECOVERY" | "LOW_RECOVERY_TO_SUBSCRIPTIONS" | "LOW_SUBSCRIPTIONS_TO_WAITLIST";
+type PathAlert = {
+  code: PathAlertCode;
+  level: "warn";
+  currentPct: number;
+  thresholdPct: number;
+  message: string;
+};
+
 export type FunnelThresholds = {
   minStartBuildingCtrPct: number;
   minSubmitRatePct: number;
@@ -50,6 +59,12 @@ export type LocaleGapThresholds = {
   minCtrGapPct: number;
   minSubmitRateGapPct: number;
   minSuspectedShareGapPct: number;
+};
+
+export type PathFunnelThresholds = {
+  minAskToRecoveryPct: number;
+  minRecoveryToSubscriptionsPct: number;
+  minSubscriptionsToWaitlistPct: number;
 };
 
 type LocaleDiagnosticItem = {
@@ -92,6 +107,25 @@ export type FunnelSnapshot = {
   localeDiagnostics: LocaleDiagnosticItem[];
   localeGapThresholds: LocaleGapThresholds;
   localeGapAlerts: LocaleGapAlert[];
+  pathFunnel: {
+    homeViews: number;
+    askViews: number;
+    recoveryViews: number;
+    subscriptionsViews: number;
+    waitlistSubmits: number;
+    rates: {
+      homeToAsk: number;
+      askToRecovery: number;
+      recoveryToSubscriptions: number;
+      subscriptionsToWaitlist: number;
+    };
+    thresholds: {
+      minAskToRecoveryPct: number;
+      minRecoveryToSubscriptionsPct: number;
+      minSubscriptionsToWaitlistPct: number;
+    };
+    alerts: PathAlert[];
+  };
 };
 
 function rate(numerator: number, denominator: number): number {
@@ -188,6 +222,7 @@ export function buildFunnelSnapshot(
   nowMs = Date.now(),
   thresholdOverrides?: Partial<FunnelThresholds>,
   localeGapThresholdOverrides?: Partial<LocaleGapThresholds>,
+  pathThresholdOverrides?: Partial<PathFunnelThresholds>,
 ): FunnelSnapshot {
   const filtered = locale === "all" ? events : events.filter((event) => event.payload.locale === locale);
   const last24hThreshold = nowMs - 24 * 60 * 60 * 1000;
@@ -204,6 +239,60 @@ export function buildFunnelSnapshot(
     demoSubmits: filtered.filter((event) => event.name === "demo_submit").length,
     waitlistSubmits: filtered.filter((event) => event.name === "waitlist_submit").length,
   };
+  const pathFunnelCounts = {
+    homeViews: filtered.filter(
+      (event) => event.name === "page_view" && (event.payload.page === "home" || event.payload.page.endsWith(`/${event.payload.locale}`)),
+    ).length,
+    askViews: filtered.filter((event) => event.name === "page_view" && event.payload.page.endsWith("/ask")).length,
+    recoveryViews: filtered.filter((event) => event.name === "page_view" && event.payload.page.endsWith("/recovery-hitl")).length,
+    subscriptionsViews: filtered.filter((event) => event.name === "page_view" && event.payload.page.endsWith("/subscriptions")).length,
+    waitlistSubmits: filtered.filter((event) => event.name === "waitlist_submit").length,
+  };
+  const pathFunnelRates = {
+    homeToAsk: rate(pathFunnelCounts.askViews, pathFunnelCounts.homeViews),
+    askToRecovery: rate(pathFunnelCounts.recoveryViews, pathFunnelCounts.askViews),
+    recoveryToSubscriptions: rate(pathFunnelCounts.subscriptionsViews, pathFunnelCounts.recoveryViews),
+    subscriptionsToWaitlist: rate(pathFunnelCounts.waitlistSubmits, pathFunnelCounts.subscriptionsViews),
+  };
+  const pathThresholds: PathFunnelThresholds = {
+    minAskToRecoveryPct:
+      pathThresholdOverrides?.minAskToRecoveryPct ??
+      readThreshold(process.env.GAIALYNK_ANALYTICS_PATH_MIN_ASK_TO_RECOVERY_PCT, 45),
+    minRecoveryToSubscriptionsPct:
+      pathThresholdOverrides?.minRecoveryToSubscriptionsPct ??
+      readThreshold(process.env.GAIALYNK_ANALYTICS_PATH_MIN_RECOVERY_TO_SUBSCRIPTIONS_PCT, 35),
+    minSubscriptionsToWaitlistPct:
+      pathThresholdOverrides?.minSubscriptionsToWaitlistPct ??
+      readThreshold(process.env.GAIALYNK_ANALYTICS_PATH_MIN_SUBSCRIPTIONS_TO_WAITLIST_PCT, 20),
+  };
+  const pathAlerts: PathAlert[] = [];
+  if (pathFunnelRates.askToRecovery < pathThresholds.minAskToRecoveryPct) {
+    pathAlerts.push({
+      code: "LOW_ASK_TO_RECOVERY",
+      level: "warn",
+      currentPct: pathFunnelRates.askToRecovery,
+      thresholdPct: pathThresholds.minAskToRecoveryPct,
+      message: "Ask to Recovery conversion is below threshold.",
+    });
+  }
+  if (pathFunnelRates.recoveryToSubscriptions < pathThresholds.minRecoveryToSubscriptionsPct) {
+    pathAlerts.push({
+      code: "LOW_RECOVERY_TO_SUBSCRIPTIONS",
+      level: "warn",
+      currentPct: pathFunnelRates.recoveryToSubscriptions,
+      thresholdPct: pathThresholds.minRecoveryToSubscriptionsPct,
+      message: "Recovery to Subscriptions conversion is below threshold.",
+    });
+  }
+  if (pathFunnelRates.subscriptionsToWaitlist < pathThresholds.minSubscriptionsToWaitlistPct) {
+    pathAlerts.push({
+      code: "LOW_SUBSCRIPTIONS_TO_WAITLIST",
+      level: "warn",
+      currentPct: pathFunnelRates.subscriptionsToWaitlist,
+      thresholdPct: pathThresholds.minSubscriptionsToWaitlistPct,
+      message: "Subscriptions to Waitlist conversion is below threshold.",
+    });
+  }
 
   const ctaCounter = new Map<string, number>();
   const pageCounter = new Map<string, number>();
@@ -338,5 +427,11 @@ export function buildFunnelSnapshot(
     localeDiagnostics,
     localeGapThresholds,
     localeGapAlerts,
+    pathFunnel: {
+      ...pathFunnelCounts,
+      rates: pathFunnelRates,
+      thresholds: pathThresholds,
+      alerts: pathAlerts,
+    },
   };
 }

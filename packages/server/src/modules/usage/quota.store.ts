@@ -21,6 +21,7 @@ export interface QuotaResult {
 const quotaByActorFeature = new Map<string, QuotaState>();
 const DEFAULT_FREE_LIMITS: Record<string, number> = {
   agent_deployments: 1,
+  subscription_task_runs: 10,
 };
 
 const buildQuotaKey = (actorId: string, feature: string): string => `${actorId}::${feature}`;

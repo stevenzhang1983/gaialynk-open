@@ -13,14 +13,14 @@ npm run contracts:drift:mainline
 echo "[preflight] full test suite"
 npm test
 
-echo "[preflight] target service reachability (if MAINLINE_BASE_URL is set)"
+echo "[preflight] target service reachability"
 node --import tsx scripts/mainline-check-target-reachable.ts
 
-if [[ -n "${DATABASE_URL:-}" ]]; then
-  echo "[preflight] postgres integration"
-  npm run test:pg
-else
-  echo "[preflight] skip postgres integration (DATABASE_URL not set)"
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "[preflight] DATABASE_URL is required"
+  exit 1
 fi
+echo "[preflight] postgres integration"
+npm run test:pg
 
 echo "[preflight] completed"

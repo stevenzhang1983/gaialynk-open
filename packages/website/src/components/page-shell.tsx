@@ -21,21 +21,45 @@ export function PageShell({ locale, children }: PageShellProps) {
           <Link href={`/${locale}`} className="text-sm font-semibold text-foreground">
             GaiaLynk Agent IM
           </Link>
-          <nav className="flex items-center gap-5 text-sm text-muted">
+          <nav className="flex flex-wrap items-center gap-4 text-sm text-muted">
+            <Link href={`/${locale}/ask`} className="hover:text-foreground">
+              {dict.nav.ask}
+            </Link>
+            {dict.nav.tasks && (
+              <Link href={`/${locale}/subscriptions`} className="hover:text-foreground">
+                {dict.nav.tasks}
+              </Link>
+            )}
+            {dict.nav.agents && (
+              <Link href={`/${locale}/agents`} className="hover:text-foreground">
+                {dict.nav.agents}
+              </Link>
+            )}
+            {dict.nav.approvals && (
+              <Link href={`/${locale}/recovery-hitl`} className="hover:text-foreground">
+                {dict.nav.approvals}
+              </Link>
+            )}
+            {dict.nav.history && (
+              <Link href={`/${locale}/history`} className="hover:text-foreground">
+                {dict.nav.history}
+              </Link>
+            )}
+            {dict.nav.connector && (
+              <Link href={`/${locale}/connectors-governance`} className="hover:text-foreground">
+                {dict.nav.connector}
+              </Link>
+            )}
+            {dict.nav.settings && (
+              <Link href={`/${locale}/settings`} className="hover:text-foreground">
+                {dict.nav.settings}
+              </Link>
+            )}
             <Link href={`/${locale}/developers`} className="hover:text-foreground">
               {dict.nav.developers}
             </Link>
-            <Link href={`/${locale}/trust`} className="hover:text-foreground">
-              {dict.nav.trust}
-            </Link>
-            <Link href={`/${locale}/use-cases`} className="hover:text-foreground">
-              {dict.nav.useCases}
-            </Link>
             <Link href={`/${locale}/docs`} className="hover:text-foreground">
               {dict.nav.docs}
-            </Link>
-            <Link href={`/${locale}/analytics`} className="hover:text-foreground">
-              {dict.nav.analytics}
             </Link>
             <LangSwitcher currentLocale={locale} />
           </nav>

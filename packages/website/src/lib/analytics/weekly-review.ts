@@ -23,6 +23,15 @@ function renderLocaleGapAlertLines(snapshot: FunnelSnapshot): string {
     .join("\n");
 }
 
+function renderPathAlertLines(snapshot: FunnelSnapshot): string {
+  if (!snapshot.pathFunnel.alerts.length) {
+    return "- None";
+  }
+  return snapshot.pathFunnel.alerts
+    .map((item) => `- ${item.code} (${item.currentPct}% / threshold ${item.thresholdPct}%)`)
+    .join("\n");
+}
+
 function renderLocaleDiagnosticsTable(snapshot: FunnelSnapshot): string {
   const rows = snapshot.localeDiagnostics
     .map((item) => `| ${item.locale} | ${item.homeViews} | ${item.startBuildingCtr}% | ${item.submitRate}% | ${item.suspectedTrafficSharePct}% |`)
@@ -58,6 +67,22 @@ export function buildWeeklyReviewMarkdown(input: BuildWeeklyReviewInput): string
     "",
     "### Locale Gap Alerts",
     renderLocaleGapAlertLines(input.snapshot),
+    "",
+    "### Entry Path Funnel",
+    `- Home -> Ask: ${input.snapshot.pathFunnel.rates.homeToAsk}%`,
+    `- Ask -> Recovery: ${input.snapshot.pathFunnel.rates.askToRecovery}%`,
+    `- Recovery -> Subscriptions: ${input.snapshot.pathFunnel.rates.recoveryToSubscriptions}%`,
+    `- Subscriptions -> Waitlist: ${input.snapshot.pathFunnel.rates.subscriptionsToWaitlist}%`,
+    "",
+    "### Entry Path Alerts",
+    renderPathAlertLines(input.snapshot),
+    "",
+    "### Alert -> Hypothesis -> Change -> Recovery",
+    "*(At least one experiment per week; fill and track so conclusions are traceable.)*",
+    "- **Alert:** (triggered alert from above, or describe)",
+    "- **Hypothesis / 假设:** (what we think is the cause)",
+    "- **Change / 改动:** (what we changed)",
+    "- **Recovery / 回收结果:** (outcome or signal we will check)",
     "",
     "### Next Actions",
     "- Keep: ",

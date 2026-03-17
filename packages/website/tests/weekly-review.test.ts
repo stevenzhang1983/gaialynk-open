@@ -63,6 +63,33 @@ describe("weekly review markdown", () => {
             worstLocale: "zh-Hans",
           },
         ],
+        pathFunnel: {
+          homeViews: 100,
+          askViews: 20,
+          recoveryViews: 10,
+          subscriptionsViews: 5,
+          waitlistSubmits: 3,
+          rates: {
+            homeToAsk: 20,
+            askToRecovery: 50,
+            recoveryToSubscriptions: 50,
+            subscriptionsToWaitlist: 60,
+          },
+          thresholds: {
+            minAskToRecoveryPct: 45,
+            minRecoveryToSubscriptionsPct: 35,
+            minSubscriptionsToWaitlistPct: 20,
+          },
+          alerts: [
+            {
+              code: "LOW_ASK_TO_RECOVERY",
+              level: "warn",
+              currentPct: 20,
+              thresholdPct: 45,
+              message: "Ask to Recovery conversion is below threshold.",
+            },
+          ],
+        },
       },
     });
 
@@ -72,5 +99,14 @@ describe("weekly review markdown", () => {
     expect(markdown).toContain("LOW_START_BUILDING_CTR");
     expect(markdown).toContain("LOCALE_CTR_GAP_HIGH");
     expect(markdown).toContain("| en | 50 | 15% | 4% | 8% |");
+    expect(markdown).toContain("### Alert -> Hypothesis -> Change -> Recovery");
+    expect(markdown).toContain("**Alert:**");
+    expect(markdown).toContain("**Hypothesis / 假设:**");
+    expect(markdown).toContain("**Change / 改动:**");
+    expect(markdown).toContain("**Recovery / 回收结果:**");
+    expect(markdown).toContain("### Entry Path Funnel");
+    expect(markdown).toContain("- Home -> Ask: 20%");
+    expect(markdown).toContain("### Entry Path Alerts");
+    expect(markdown).toContain("LOW_ASK_TO_RECOVERY");
   });
 });

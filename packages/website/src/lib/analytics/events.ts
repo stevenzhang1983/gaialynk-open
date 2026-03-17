@@ -9,6 +9,16 @@ export const ANALYTICS_EVENTS = [
   "waitlist_submit",
   "demo_submit",
   "lang_switch",
+  "submit_ask",
+  "approval_action",
+  "fallback_action",
+  "export_action",
+  "revoke_auth",
+  "task_create",
+  "task_pause",
+  "task_resume",
+  "task_archive",
+  "task_delete",
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[number];
@@ -22,6 +32,10 @@ export type AnalyticsPayload = {
   source?: string;
   device_type?: "mobile" | "desktop";
   is_suspected_bot?: boolean;
+  action?: string;
+  outcome?: string;
+  task_id?: string;
+  auth_id?: string;
 };
 
 export function inferDeviceType(width: number): "mobile" | "desktop" {

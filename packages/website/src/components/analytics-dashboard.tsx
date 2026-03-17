@@ -149,6 +149,34 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold">Entry Path Funnel (Home to Ask to Recovery to Subscriptions to Waitlist)</h2>
+        <ul className="mt-3 space-y-2 text-sm text-muted">
+          <li>Home Views: {snapshot?.pathFunnel.homeViews ?? 0}</li>
+          <li>Ask Views: {snapshot?.pathFunnel.askViews ?? 0}</li>
+          <li>Recovery Views: {snapshot?.pathFunnel.recoveryViews ?? 0}</li>
+          <li>Subscriptions Views: {snapshot?.pathFunnel.subscriptionsViews ?? 0}</li>
+          <li>Waitlist Submits: {snapshot?.pathFunnel.waitlistSubmits ?? 0}</li>
+        </ul>
+        <ul className="mt-3 space-y-2 text-xs text-muted">
+          <li>Home to Ask: {snapshot?.pathFunnel.rates.homeToAsk ?? 0}%</li>
+          <li>Ask to Recovery: {snapshot?.pathFunnel.rates.askToRecovery ?? 0}%</li>
+          <li>Recovery to Subscriptions: {snapshot?.pathFunnel.rates.recoveryToSubscriptions ?? 0}%</li>
+          <li>Subscriptions to Waitlist: {snapshot?.pathFunnel.rates.subscriptionsToWaitlist ?? 0}%</li>
+        </ul>
+        <div className="mt-3 space-y-2 text-xs">
+          {(snapshot?.pathFunnel.alerts ?? []).map((alert) => (
+            <div key={alert.code} className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-200">
+              <p className="font-semibold">
+                {alert.code}: {alert.currentPct}% (threshold {alert.thresholdPct}%)
+              </p>
+              <p>{alert.message}</p>
+            </div>
+          ))}
+          {!snapshot?.pathFunnel.alerts?.length ? <p className="text-muted">No entry path alerts triggered.</p> : null}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Suspected Traffic Trend (24h)</h2>
         <div className="mt-3 space-y-2 text-xs text-muted">
           {(snapshot?.suspectedByHour24h ?? []).map((item) => (
@@ -230,7 +258,7 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
           </button>
         </div>
         <p className="mt-1 text-xs text-muted">
-          Paste directly into weekly review doc. Includes funnel alerts and locale diagnostics.
+          Paste into weekly review doc. Includes funnel alerts, locale diagnostics, and Alert → Hypothesis → Change → Recovery template for at least one experiment per week.
         </p>
         <pre className="mt-3 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted">
           {weeklyReviewMarkdown || "Loading snapshot..."}
