@@ -5,10 +5,10 @@ echo "[preflight] mainline typecheck"
 npm run typecheck
 
 echo "[preflight] frozen contract compatibility"
-npm run test:contracts:mainline
+env -u DATABASE_URL npm run test:contracts:mainline
 
 echo "[preflight] contract drift report"
-npm run contracts:drift:mainline
+env -u DATABASE_URL npm run contracts:drift:mainline
 
 echo "[preflight] full test suite (isolated, no DATABASE_URL)"
 # Keep the full suite deterministic: do not let repository-wide tests hit staging/prod DB.
