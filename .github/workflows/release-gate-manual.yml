@@ -10,6 +10,11 @@ concurrency:
   group: release-gate-manual-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # GitHub announced Node20 deprecation for JavaScript actions.
+  # Opt this workflow into Node24 runtime now to remove the warning and future-proof execution.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   triple-gate:
     runs-on: ubuntu-latest
