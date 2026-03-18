@@ -13,6 +13,20 @@ concurrency:
 jobs:
   triple-gate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gaialynk_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gaialynk_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +43,6 @@ jobs:
       - name: Validate required secrets
         env:
           MAINLINE_BASE_URL: ${{ secrets.MAINLINE_BASE_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ACTOR_TRUST_TOKEN: ${{ secrets.ACTOR_TRUST_TOKEN }}
           MAINLINE_API_URL: ${{ secrets.MAINLINE_API_URL }}
           MAINLINE_ACTOR_TRUST_TOKEN: ${{ secrets.MAINLINE_ACTOR_TRUST_TOKEN }}
@@ -37,18 +50,27 @@ jobs:
         run: |
           set -e
           ok=1
-          for name in MAINLINE_BASE_URL DATABASE_URL ACTOR_TRUST_TOKEN MAINLINE_API_URL MAINLINE_ACTOR_TRUST_TOKEN NEXT_PUBLIC_SITE_URL; do
+          for name in MAINLINE_BASE_URL ACTOR_TRUST_TOKEN MAINLINE_API_URL MAINLINE_ACTOR_TRUST_TOKEN NEXT_PUBLIC_SITE_URL; do
             eval "val=\$$name"
             if [ -z "$val" ]; then echo "::error::Missing repository secret: $name"; ok=0; fi
           done
           [ "$ok" = 1 ]
+
+      - name: Staging mainline health evidence
+        env:
+          MAINLINE_BASE_URL: ${{ secrets.MAINLINE_BASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl -fsS "${MAINLINE_BASE_URL}/api/v1/health" | tee artifacts/staging-mainline-health.json
+          curl -fsS "${MAINLINE_BASE_URL}/api/v1/meta" | tee artifacts/staging-mainline-meta.json
 
       - name: Triple release gate (preflight + website build + website gate)
         id: triple
         continue-on-error: true
         env:
           MAINLINE_BASE_URL: ${{ secrets.MAINLINE_BASE_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/gaialynk_ci
           ACTOR_TRUST_TOKEN: ${{ secrets.ACTOR_TRUST_TOKEN }}
           MAINLINE_API_URL: ${{ secrets.MAINLINE_API_URL }}
           MAINLINE_ACTOR_TRUST_TOKEN: ${{ secrets.MAINLINE_ACTOR_TRUST_TOKEN }}
