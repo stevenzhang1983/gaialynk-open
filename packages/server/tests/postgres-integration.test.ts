@@ -259,7 +259,9 @@ integrationDescribe("postgres integration", () => {
     const receiptId = executeBody.data.receipt_id as string;
 
     const secondRestart = createApp();
-    const receiptRes = await secondRestart.request(`/api/v1/connectors/local-action-receipts/${receiptId}`);
+    const receiptRes = await secondRestart.request(
+      `/api/v1/connectors/local-action-receipts/${receiptId}?actor_id=pg-connector-user`,
+    );
     expect(receiptRes.status).toBe(200);
     const receiptBody = await receiptRes.json();
     expect(receiptBody.data.action).toBe("notion.pages.delete");
