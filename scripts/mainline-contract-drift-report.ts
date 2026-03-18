@@ -251,11 +251,37 @@ function toMarkdown(baseline: Snapshot, current: Snapshot, drift: boolean): stri
   ].join("\n");
 }
 
-async function run(): Promise<void> {
-  const baselinePath = "docs/contracts/mainline-api-contract-baseline.v1.json";
-  const reportPath = "reports/mainline-contract-drift-report.md";
+const BASELINE_PATH = "docs/contracts/mainline-api-contract-baseline.v1.json";
 
-  const baselineRaw = await readFile(baselinePath, "utf8");
+async function run(): Promise<void> {
+  const reportPath = "reports/mainline-contract-drift-report.md";
+  const args = process.argv.slice(2);
+  const initBaseline = args.includes("--init-baseline");
+
+  if (initBaseline) {
+    const snapshot = await buildSnapshot();
+    await mkdir("docs/contracts", { recursive: true });
+    await writeFile(`${BASELINE_PATH}`, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+    console.log(`[contract-drift] Wrote baseline: ${BASELINE_PATH}`);
+    return;
+  }
+
+  let baselineRaw: string;
+  try {
+    baselineRaw = await readFile(BASELINE_PATH, "utf8");
+  } catch (err) {
+    const code = err && typeof err === "object" && "code" in err ? (err as NodeJS.ErrnoException).code : "";
+    if (code === "ENOENT") {
+      console.error(
+        `[contract-drift] Missing baseline ${BASELINE_PATH}. First-time setup: run\n` +
+          `  node --import tsx scripts/mainline-contract-drift-report.ts --init-baseline\n` +
+          `then commit the JSON. See docs/contracts/README.md.`,
+      );
+      process.exit(1);
+    }
+    throw err;
+  }
+
   const baseline = JSON.parse(baselineRaw) as Snapshot;
   const current = await buildSnapshot();
   const drift = !deepEqual(baseline, current);

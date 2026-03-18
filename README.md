@@ -82,6 +82,8 @@ npm test
 npm run typecheck
 ```
 
+**Mainline contract drift** (used in CI / preflight): compares the server to `docs/contracts/mainline-api-contract-baseline.v1.json`. **First enable or fresh repo:** run `node --import tsx scripts/mainline-contract-drift-report.ts --init-baseline` and commit that file. See `docs/contracts/README.md`.
+
 Website release gate checks (typecheck + governance tests, including promise consistency and API health for "Now" capabilities):
 
 ```bash

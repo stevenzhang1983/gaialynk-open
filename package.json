@@ -22,6 +22,7 @@
     "release:smoke:mainline": "node --import tsx scripts/mainline-post-release-smoke.ts",
     "release:weekly:ops-evidence:mainline": "./scripts/mainline-weekly-ops-evidence.sh",
     "contracts:drift:mainline": "node --import tsx scripts/mainline-contract-drift-report.ts",
+    "contracts:init-baseline:mainline": "node --import tsx scripts/mainline-contract-drift-report.ts --init-baseline",
     "build:website": "npm --prefix packages/website run build",
     "test:website": "npm --prefix packages/website run test",
     "test:website:governance": "npm --prefix packages/website run test:governance",

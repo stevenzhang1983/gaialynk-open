@@ -22,7 +22,6 @@ docs/Agent-IM-Engineering-Open-Source-Boundary-Guide.md
 docs/Agent-IM-OSS-vs-Cloud-Capability-Matrix.md
 docs/ADR-0001-Receipt-Signing-Upgrade-Ed25519-JWS.md
 docs/ADR-0002-Audit-Append-Only-and-Query-Enhancement.md
-docs/contracts/mainline-api-contract-baseline.v1.json
 docs/Agent-IM-Mainline-Team-Launch-Closure-Checklist.md
 docs/Agent-IM-Website-Team-Launch-Closure-Checklist.md
 docs/Agent-IM-CTO-Launch-Integration-and-Deployment-Plan.md
