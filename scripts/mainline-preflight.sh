@@ -10,8 +10,9 @@ npm run test:contracts:mainline
 echo "[preflight] contract drift report"
 npm run contracts:drift:mainline
 
-echo "[preflight] full test suite"
-npm test
+echo "[preflight] full test suite (isolated, no DATABASE_URL)"
+# Keep the full suite deterministic: do not let repository-wide tests hit staging/prod DB.
+env -u DATABASE_URL npm test
 
 echo "[preflight] target service reachability"
 node --import tsx scripts/mainline-check-target-reachable.ts
