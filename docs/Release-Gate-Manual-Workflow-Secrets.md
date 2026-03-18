@@ -15,6 +15,7 @@ GitHub → **Actions** → **Release gate manual (triple)** → **Run workflow**
 | `NEXT_PUBLIC_SITE_URL` | Staging 官网，如 `https://gaialynk-a2a.vercel.app` |
 
 > `DATABASE_URL` 不是此 workflow 的必填 Secret。`test:pg` 在 workflow 内使用 CI Postgres service（`postgresql://postgres:postgres@127.0.0.1:5432/gaialynk_ci`），避免真实 staging 数据库污染导致的非确定性失败。
+> workflow 在三连门禁前会先执行一次 `npm run db:migrate`（针对 CI Postgres service）。
 
 ## 产出物
 

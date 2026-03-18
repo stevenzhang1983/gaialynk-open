@@ -81,8 +81,10 @@ jobs:
           LOG="artifacts/triple-gate-full.log"
           {
             echo "=== triple-gate run_id=${{ github.run_id }} run_attempt=${{ github.run_attempt }} ==="
-            echo "=== $(date -u -Iseconds) release:preflight:mainline ==="
+            echo "=== $(date -u -Iseconds) db:migrate (CI Postgres) ==="
             set -e
+            npm run db:migrate
+            echo "=== $(date -u -Iseconds) release:preflight:mainline ==="
             npm run release:preflight:mainline
             echo "=== $(date -u -Iseconds) NODE_ENV=production website build ==="
             NODE_ENV=production npm --prefix packages/website run build
