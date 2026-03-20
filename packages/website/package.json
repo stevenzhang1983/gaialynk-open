@@ -12,6 +12,7 @@
     "test:governance": "vitest run --config vitest.config.ts tests/promise-consistency-gate.test.ts tests/entry-governance-consistency.test.ts tests/website-entry-coverage.test.ts tests/sitemap-entry-routes.test.ts tests/api-health-gate.test.ts tests/terminology-governance.test.ts",
     "test:integration:mainline-proxy": "vitest run --config vitest.config.ts tests/mainline-proxy.test.ts",
     "release:gate": "npm run typecheck && npm run test:governance && npm run test:integration:mainline-proxy",
+    "lighthouse:cwv": "node scripts/lighthouse-cwv.mjs",
     "analytics:migrate": "node scripts/migrate-analytics.mjs",
     "analytics:cleanup": "node scripts/cleanup-analytics.mjs"
   },

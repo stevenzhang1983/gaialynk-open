@@ -2,6 +2,7 @@ node_modules/
 .DS_Store
 .env
 .env.*
+!packages/website/.env.example
 coverage/
 dist/
 packages/website/.next/

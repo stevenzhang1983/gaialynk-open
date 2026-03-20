@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getSiteOrigin } from "@/lib/site-origin";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/locales";
 
 const ROUTES = [
@@ -27,7 +28,7 @@ const ROUTES = [
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://gaialynk.com";
+  const base = getSiteOrigin();
   const now = new Date();
 
   return SUPPORTED_LOCALES.flatMap((locale) =>
