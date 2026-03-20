@@ -2,30 +2,30 @@
 
 import { useRef, useState } from "react";
 import type { ProductMockupCopy } from "@/content/i18n/product-mockup-copy";
+import { useTilt } from "@/hooks/use-tilt";
 
 /**
  * T-3.2 首页产品界面预览 Mockup
  * 三栏：对话列表 | 用户↔Agent 对话 + 风险确认卡片 | Agent 身份与信誉 + 收据
- * 浮窗式展示；hover 时可选轻微动效（消息滚动）。
+ * 浮窗式展示；Alma.now 风格鼠标跟随 3D 倾斜动效。
  */
 export function ProductPreviewMockup({ copy }: { copy: ProductMockupCopy }) {
   const [hovered, setHovered] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useTilt(cardRef, { max: 6, scale: 1.015, speed: 300 });
 
   return (
-    <div
-      ref={containerRef}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="relative mx-auto w-full min-w-0 max-w-5xl"
-      style={{ perspective: "1400px" }}
-    >
+    <div className="relative mx-auto w-full min-w-0 max-w-5xl">
       <div
-        className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-elevated transition-all duration-500 ease-out md:[transform:rotateX(2deg)_rotateY(-3deg)]"
+        ref={cardRef}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-elevated"
         style={{
           boxShadow: hovered
-            ? "var(--shadow-brand-md), 0 32px 80px -24px rgb(0 0 0 / 0.5)"
-            : "var(--shadow-elevated), 0 0 0 1px rgb(var(--color-border) / 0.5)",
+            ? "0 0 40px -8px rgb(var(--color-primary) / 0.2), 0 20px 60px -16px rgb(12 18 36 / 0.12)"
+            : "var(--shadow-card), 0 0 0 1px rgb(var(--color-border) / 0.5)",
         }}
       >
         {/* 顶部标题栏 */}
@@ -78,7 +78,7 @@ export function ProductPreviewMockup({ copy }: { copy: ProductMockupCopy }) {
                   hovered ? "opacity-100" : "opacity-95"
                 }`}
               >
-                <p className="text-caption font-semibold text-warning-foreground">
+                <p className="text-caption font-semibold text-amber-800">
                   {copy.riskTitle}
                 </p>
                 <p className="mt-1 text-caption text-muted-foreground">

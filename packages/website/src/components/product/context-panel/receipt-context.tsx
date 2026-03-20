@@ -92,9 +92,9 @@ export function ReceiptContext({ receiptId }: ReceiptContextProps) {
         <h4 className="text-xs font-medium text-muted-foreground">Signature verification</h4>
         <p className="mt-1 text-sm text-foreground">
           {verified === true ? (
-            <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
+            <span className="text-emerald-600">Verified</span>
           ) : verified === false ? (
-            <span className="text-amber-600 dark:text-amber-400">Unverified</span>
+            <span className="text-amber-600">Unverified</span>
           ) : receipt?.signature ? (
             <code className="rounded bg-muted px-1 text-[10px]">{receipt.signature.slice(0, 20)}…</code>
           ) : (

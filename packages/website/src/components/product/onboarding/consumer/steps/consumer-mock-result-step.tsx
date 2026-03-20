@@ -59,7 +59,7 @@ export function ConsumerMockResultStep({
           </div>
           <div>
             <dt className="text-muted-foreground">{copy.trustDecision}</dt>
-            <dd className="font-medium text-emerald-600 dark:text-emerald-400">{receipt.trustDecision}</dd>
+            <dd className="font-medium text-emerald-600">{receipt.trustDecision}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">{copy.routedAgent}</dt>

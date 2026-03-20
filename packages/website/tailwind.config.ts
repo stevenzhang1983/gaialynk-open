@@ -55,7 +55,7 @@ const config: Config = {
         wide: "var(--tracking-wide)",
       },
       lineHeight: {
-        hero: "var(--leading-tight)",
+        hero: "var(--leading-hero)",
         "body-relaxed": "var(--leading-body-relaxed)",
       },
       colors: {

@@ -6,8 +6,8 @@ import { RiskConfirmationCard } from "./risk-confirmation-card";
 import { ReceiptLink } from "./receipt-link";
 
 const VERIFICATION_CLASS = {
-  verified: "text-emerald-600 dark:text-emerald-400",
-  pending: "text-amber-600 dark:text-amber-400",
+  verified: "text-emerald-600",
+  pending: "text-amber-600",
   unverified: "text-zinc-500",
 } as const;
 

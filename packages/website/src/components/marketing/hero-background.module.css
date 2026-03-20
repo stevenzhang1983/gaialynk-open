@@ -1,6 +1,6 @@
 /**
  * T-3.1 Hero 背景动效（CSS-only，低端设备友好）
- * 渐变网格 + 节点呼吸光晕 + 连接线漂移 + 浮动节点点阵
+ * 明亮主题下：微妙青色网格 + 柔和中心光晕 + 漂移连接线 + 浮动节点
  * 尊重 prefers-reduced-motion。
  */
 
@@ -16,15 +16,15 @@
   position: absolute;
   inset: -50%;
   background-image:
-    linear-gradient(rgb(var(--color-primary) / 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--color-primary) / 0.09) 1px, transparent 1px);
+    linear-gradient(rgb(var(--color-primary) / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-primary) / 0.07) 1px, transparent 1px);
   background-size: 64px 64px;
   animation: heroGridPulse 8s ease-in-out infinite;
 }
 
 @keyframes heroGridPulse {
   0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.02); }
+  50% { opacity: 0.8; transform: scale(1.02); }
 }
 
 /* ─── Central glow ─── */
@@ -38,15 +38,15 @@
   transform: translate(-50%, -50%);
   background: radial-gradient(
     ellipse at center,
-    rgb(var(--color-primary) / 0.18) 0%,
-    rgb(var(--color-primary) / 0.07) 40%,
+    rgb(var(--color-primary) / 0.1) 0%,
+    rgb(var(--color-primary) / 0.04) 40%,
     transparent 70%
   );
   animation: heroGlowBreath 6s ease-in-out infinite;
 }
 
 @keyframes heroGlowBreath {
-  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
   50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 }
 
@@ -55,9 +55,9 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(115deg, transparent 44%, rgb(var(--color-primary) / 0.12) 50%, transparent 56%),
-    linear-gradient(245deg, transparent 44%, rgb(var(--color-primary) / 0.10) 50%, transparent 56%),
-    linear-gradient(170deg, transparent 46%, rgb(var(--color-primary) / 0.06) 50%, transparent 54%);
+    linear-gradient(115deg, transparent 44%, rgb(var(--color-primary) / 0.06) 50%, transparent 56%),
+    linear-gradient(245deg, transparent 44%, rgb(var(--color-primary) / 0.05) 50%, transparent 56%),
+    linear-gradient(170deg, transparent 46%, rgb(var(--color-primary) / 0.03) 50%, transparent 54%);
   background-size: 120% 120%;
   background-position: 0% 0%;
   animation: heroLinesMove 18s linear infinite;
@@ -77,8 +77,8 @@
 .node {
   position: absolute;
   border-radius: 50%;
-  background: rgb(var(--color-primary) / 0.35);
-  box-shadow: 0 0 8px 2px rgb(var(--color-primary) / 0.15);
+  background: rgb(var(--color-primary) / 0.3);
+  box-shadow: 0 0 8px 2px rgb(var(--color-primary) / 0.12);
   animation: nodeFloat 5s ease-in-out infinite;
 }
 
@@ -92,36 +92,36 @@
 .node:nth-child(8) { width: 5px; height: 5px; top: 80%; left: 28%; animation-delay: -2s; animation-duration: 6.2s; }
 
 @keyframes nodeFloat {
-  0%, 100% { opacity: 0.3; transform: translateY(0) scale(1); }
-  50% { opacity: 0.8; transform: translateY(-6px) scale(1.3); }
+  0%, 100% { opacity: 0.25; transform: translateY(0) scale(1); }
+  50% { opacity: 0.7; transform: translateY(-6px) scale(1.3); }
 }
 
 /* ─── Reduced-motion ─── */
 @media (prefers-reduced-motion: reduce) {
-  .grid  { animation: none; opacity: 0.6; }
-  .glow  { animation: none; opacity: 0.7; }
-  .lines { animation: none; opacity: 0.4; }
-  .node  { animation: none; opacity: 0.5; }
+  .grid  { animation: none; opacity: 0.4; }
+  .glow  { animation: none; opacity: 0.5; }
+  .lines { animation: none; opacity: 0.3; }
+  .node  { animation: none; opacity: 0.35; }
 }
 
 /* ─── Mobile: soften to save battery ─── */
 @media (max-width: 767px) {
   .grid {
     animation: none;
-    opacity: 0.3;
+    opacity: 0.25;
     transform: scale(1);
   }
   .glow {
     animation: none;
-    opacity: 0.4;
+    opacity: 0.3;
     transform: translate(-50%, -50%) scale(1);
   }
   .lines {
     animation: none;
-    opacity: 0.18;
+    opacity: 0.12;
   }
   .node {
     animation: none;
-    opacity: 0.35;
+    opacity: 0.25;
   }
 }

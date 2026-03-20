@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import type { FeatureShowcaseContent } from "@/content/feature-showcase";
+import { useTilt } from "@/hooks/use-tilt";
 
 /* ----- 五个高保真 Mockup（T-6.2 验收：每个区块有真实截图/高保真 Mockup）----- */
 
@@ -23,7 +25,7 @@ function MockupChat() {
             3 breaking changes. One needs your approval.
           </div>
         </div>
-        <div className="rounded border border-warning/50 bg-warning/10 px-2 py-1 text-[9px] text-warning-foreground">
+        <div className="rounded border border-warning/50 bg-warning/10 px-2 py-1 text-[9px] text-amber-800">
           Risk confirmation · Approve / Reject
         </div>
       </div>
@@ -43,7 +45,7 @@ function MockupTrust() {
           <p className="text-[9px] text-success">Verified · 4.8</p>
         </div>
         <div className="rounded border-2 border-warning/60 bg-warning/10 px-2 py-1.5">
-          <p className="text-[9px] font-semibold text-warning-foreground">Needs approval</p>
+          <p className="text-[9px] font-semibold text-amber-800">Needs approval</p>
           <p className="text-[9px] text-muted-foreground">External API call</p>
           <div className="mt-1 flex gap-1">
             <span className="rounded bg-success/20 px-1.5 py-0.5 text-[8px] text-success">Approve</span>
@@ -124,6 +126,16 @@ const MOCKUP_MAP = {
   evidence: MockupEvidence,
 } as const;
 
+function TiltMockup({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useTilt(ref, { max: 8, scale: 1.03, speed: 250 });
+  return (
+    <div ref={ref} className="w-full max-w-[280px] md:max-w-[320px]">
+      {children}
+    </div>
+  );
+}
+
 /* ----- Section variants (T-6.1: Framer Motion only for entrance) ----- */
 
 const blockVariants = {
@@ -190,13 +202,9 @@ export function FeatureShowcaseSection({ data }: FeatureShowcaseSectionProps) {
                   isEven ? "md:justify-end" : "md:justify-start"
                 }`}
               >
-                <div
-                  className={`w-full max-w-[280px] transition-[box-shadow,transform] duration-300 hover:shadow-card-hover md:max-w-[320px] ${
-                    isEven ? "md:rotate-[-0.5deg]" : "md:rotate-[0.5deg]"
-                  }`}
-                >
+                <TiltMockup>
                   <Mockup />
-                </div>
+                </TiltMockup>
               </div>
             </motion.article>
           );

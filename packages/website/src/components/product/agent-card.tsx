@@ -9,9 +9,9 @@ const VERIFICATION_LABEL: Record<AgentVerificationStatus, string> = {
 };
 
 const VERIFICATION_CLASS: Record<AgentVerificationStatus, string> = {
-  verified: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  pending: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  unverified: "border-zinc-400/40 bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
+  verified: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+  pending: "border-amber-500/40 bg-amber-500/10 text-amber-700",
+  unverified: "border-zinc-400/40 bg-zinc-500/10 text-zinc-600",
 };
 
 type AgentCardProps = {

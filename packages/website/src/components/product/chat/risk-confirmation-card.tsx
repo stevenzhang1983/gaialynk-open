@@ -28,7 +28,7 @@ export function RiskConfirmationCard({
 }: RiskConfirmationCardProps) {
   return (
     <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-      <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{title}</p>
+      <p className="text-xs font-medium text-amber-700">{title}</p>
       {reason && <p className="mt-1 text-xs text-muted-foreground">{reason}</p>}
       <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
         {invocationCaption}: {invocationId.slice(0, 8)}…

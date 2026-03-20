@@ -28,8 +28,8 @@ export function StatusBar({
   const space = currentSpace ?? defaultSpaceLabel;
   const displayStatus = isDemo ? demoLabel : connectionStatus;
   const statusColor = isDemo
-    ? "text-amber-500 dark:text-amber-400"
-    : "text-emerald-500 dark:text-emerald-400";
+    ? "text-amber-600"
+    : "text-emerald-600";
 
   return (
     <footer

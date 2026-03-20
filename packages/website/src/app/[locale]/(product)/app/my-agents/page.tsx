@@ -52,15 +52,15 @@ const COPY = {
 } as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "text-emerald-600 dark:text-emerald-400",
-  pending_review: "text-amber-600 dark:text-amber-400",
+  active: "text-emerald-600",
+  pending_review: "text-amber-600",
   deprecated: "text-zinc-500",
 };
 
 const HEALTH_COLORS: Record<string, string> = {
-  ok: "text-emerald-600 dark:text-emerald-400",
+  ok: "text-emerald-600",
   failed: "text-red-500",
-  pending: "text-amber-600 dark:text-amber-400",
+  pending: "text-amber-600",
 };
 
 export default function MyAgentsPage() {
