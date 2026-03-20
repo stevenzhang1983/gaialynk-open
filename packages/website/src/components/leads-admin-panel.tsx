@@ -289,7 +289,7 @@ export function LeadsAdminPanel({ locale }: LeadsAdminPanelProps) {
   return (
     <section className="space-y-6">
       <h1 className="text-3xl font-semibold">Leads Admin</h1>
-      <p className="text-sm text-muted">Protected export and inspection view for waitlist/demo leads.</p>
+      <p className="text-sm text-muted-foreground">Protected export and inspection view for waitlist/demo leads.</p>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="grid gap-3 md:grid-cols-2">
@@ -366,7 +366,7 @@ export function LeadsAdminPanel({ locale }: LeadsAdminPanelProps) {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3">
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-zinc-950" onClick={() => void loadList()}>
+          <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" onClick={() => void loadList()}>
             Load List
           </button>
           <button className="rounded-md border border-border px-4 py-2 text-sm font-semibold" onClick={() => void runExportJob("json")}>
@@ -375,16 +375,16 @@ export function LeadsAdminPanel({ locale }: LeadsAdminPanelProps) {
           <button className="rounded-md border border-border px-4 py-2 text-sm font-semibold" onClick={() => void runExportJob("csv")}>
             Export CSV Job
           </button>
-          <span className="self-center text-xs text-muted">{status}</span>
+          <span className="self-center text-xs text-muted-foreground">{status}</span>
         </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Latest Leads</h2>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted-foreground">
           Page {page} / {Math.max(1, Math.ceil(total / pageSize))}, total {total}
         </p>
-        <div className="mt-3 space-y-2 text-xs text-muted">
+        <div className="mt-3 space-y-2 text-xs text-muted-foreground">
           {records.map((record) => (
             <div key={record.id} className="grid grid-cols-[120px_160px_1fr] gap-3 rounded-md border border-border px-3 py-2">
               <span>{record.type}</span>
@@ -461,10 +461,10 @@ export function LeadsAdminPanel({ locale }: LeadsAdminPanelProps) {
             />
           </label>
         </div>
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-xs text-muted-foreground">
           Jobs page {jobPage} / {Math.max(1, Math.ceil(jobTotal / jobPageSize))}, total {jobTotal}
         </p>
-        <div className="mt-3 space-y-2 text-xs text-muted">
+        <div className="mt-3 space-y-2 text-xs text-muted-foreground">
           {jobs.map((job) => (
             <button
               type="button"
@@ -486,7 +486,7 @@ export function LeadsAdminPanel({ locale }: LeadsAdminPanelProps) {
           ))}
           {!jobs.length ? <p>No jobs yet.</p> : null}
         </div>
-        <div className="mt-3 rounded-md border border-border px-3 py-2 text-xs text-muted">
+        <div className="mt-3 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
           {selectedJobId && selectedJobDetail ? (
             <div className="space-y-1">
               <p>

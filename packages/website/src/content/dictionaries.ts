@@ -17,6 +17,9 @@ const dictionaries: DictionaryMap = {
       history: "History",
       connector: "Connector",
       settings: "Settings",
+      roadmap: "Roadmap",
+      pricing: "Pricing",
+      openApp: "Open App",
     },
     home: {
       eyebrow: "Trusted Collaboration Layer for the Agent Internet",
@@ -39,6 +42,80 @@ const dictionaries: DictionaryMap = {
         demo: "Book a Demo",
         waitlist: "Join Waitlist",
       },
+      hero: {
+        eyebrow: "Trusted Agent Gateway",
+        title: "Every Agent you invoke is verified, governed, and traceable.",
+        subtitle:
+          "Every invoked Agent is identity-verified, capability-checked, and behavior-tracked—malicious Agents stay out. The full call chain has policy control, human review, and verifiable receipts.",
+        ctaPrimary: "Start Building",
+        ctaSecondary: "Open App →",
+      },
+      valueProposition: {
+        title: "In the age of the Agent Internet, Agent access is not a feature—it is infrastructure.",
+        cards: [
+          {
+            title: "Verified Agents",
+            description:
+              "Every Agent is identity-verified, capability-declared, and reputation-scored before it can be invoked. Malicious or untrusted Agents are kept out by design.",
+          },
+          {
+            title: "Trust as Policy",
+            description:
+              "Your organization defines who can call which Agent under what conditions. Policy decisions are enforced at runtime—allow, limit, require approval, or deny.",
+          },
+          {
+            title: "Evidence by Default",
+            description:
+              "Every invocation produces a verifiable receipt. Audit trails link decisions, human reviews, and outcomes so you can prove what happened and why.",
+          },
+        ],
+      },
+      howItWorks: {
+        title: "How does the platform ensure the Agents you invoke are trustworthy?",
+        steps: [
+          {
+            summary: "You state your need.",
+            detail:
+              "You describe what you want in natural language. The platform receives your intent and prepares to route it through the trusted pipeline—no need to pick an Agent manually.",
+          },
+          {
+            summary:
+              "The platform matches the best Agent from verified candidates (identity ✓ capability ✓ reputation ✓).",
+            detail:
+              "Only Agents that have passed identity verification, declared their capabilities, and maintain a reputation score are considered. The platform selects the best fit for your request and prepares the invocation with full traceability.",
+          },
+          {
+            summary:
+              "Risk assessment → high-risk actions are blocked or require human confirmation.",
+            detail:
+              "Before execution, the system evaluates risk. Low-risk requests proceed automatically. High-risk or policy-sensitive actions are either blocked or sent to a human-in-the-loop queue for approval. You stay in control.",
+          },
+          {
+            summary: "The trusted Agent executes → you get the result and a verifiable receipt.",
+            detail:
+              "The selected Agent runs your task. When it completes, you receive the outcome and a cryptographically signed receipt. The receipt can be verified independently and links to the full audit trail.",
+          },
+          {
+            summary:
+              "The full audit chain is traceable; anomalous behavior can be investigated and held accountable.",
+            detail:
+              "Every decision, routing step, and execution is recorded. If something goes wrong or you need to prove compliance, the full chain is available: who was called, what was allowed, and what was delivered.",
+          },
+        ],
+      },
+      finalCta: {
+        heading: "Ready to get started?",
+        openApp: "Open App",
+        startBuilding: "Start Building",
+        bookDemo: "Book a Demo",
+      },
+      previewSectionTitle: "Product in action",
+    },
+    footer: {
+      privacy: "Privacy",
+      cookies: "Cookies",
+      github: "GitHub",
+      contact: "Contact",
     },
     developers: {
       title: "Build on a conversation-native network, not isolated agent calls.",
@@ -88,6 +165,7 @@ const dictionaries: DictionaryMap = {
       primaryCta: "View Retry and HITL Path",
       seoTitle: "Ask Path Demo - GaiaLynk Agent IM",
       seoDescription: "See how user intent becomes trustworthy results through route, review, and receipts.",
+      demoHeading: "Demo",
     },
     recovery: {
       title: "Failure recovery and HITL governance.",
@@ -120,7 +198,7 @@ const dictionaries: DictionaryMap = {
   "zh-Hant": {
     localeLabel: "繁體中文",
     nav: {
-      ask: "Ask",
+      ask: "Ask 路徑",
       developers: "開發者",
       trust: "可信與安全",
       useCases: "應用場景",
@@ -132,6 +210,9 @@ const dictionaries: DictionaryMap = {
       history: "歷史",
       connector: "連接器",
       settings: "設定",
+      roadmap: "路線圖",
+      pricing: "定價",
+      openApp: "打開應用",
     },
     home: {
       eyebrow: "Agent Internet 的可信協作層",
@@ -148,6 +229,77 @@ const dictionaries: DictionaryMap = {
         demo: "預約 Demo",
         waitlist: "加入等待名單",
       },
+      hero: {
+        eyebrow: "可信 Agent 閘道",
+        title: "讓每一個被調用的 Agent 都經過驗證、受到管控、可被追溯。",
+        subtitle:
+          "每一個被調用的 Agent 都經過身份驗證、能力校驗和行為追蹤——惡意 Agent 被擋在門外，調用全程有策略管控、人工審核和可驗證收據。",
+        ctaPrimary: "開始構建",
+        ctaSecondary: "打開應用 →",
+      },
+      valueProposition: {
+        title: "在 Agent 互聯網時代，Agent 准入不是功能，而是基礎設施。",
+        cards: [
+          {
+            title: "經過驗證的 Agent",
+            description:
+              "每個 Agent 在可被調用前都經過身份驗證、能力聲明與信譽評分。惡意或不可信 Agent 從設計上被拒之門外。",
+          },
+          {
+            title: "策略決定准入邊界",
+            description:
+              "由您的組織定義誰在何種條件下可調用哪個 Agent。策略在運行時強制執行——放行、限制、需審批或拒絕。",
+          },
+          {
+            title: "每一步都有據",
+            description:
+              "每次調用都會產生可驗證收據。審計鏈串起決策、人工覆核與結果，讓您可證明發生了什麼以及原因。",
+          },
+        ],
+      },
+      howItWorks: {
+        title: "平台如何確保你調用的 Agent 是可信的？",
+        steps: [
+          {
+            summary: "用戶說出需求。",
+            detail:
+              "你用自然語言描述想要什麼。平台接收你的意圖並準備在可信管道中路由——無需手動選擇 Agent。",
+          },
+          {
+            summary: "平台從經過驗證的 Agent 中匹配最合適的（身份校驗 ✓ 能力聲明 ✓ 信譽評分 ✓）。",
+            detail:
+              "只有通過身份驗證、聲明能力並保持信譽評分的 Agent 才會被考慮。平台為你的請求選出最合適的 Agent，並在完整可追溯的前提下準備調用。",
+          },
+          {
+            summary: "風險評估 → 高風險操作自動攔截或需人工確認。",
+            detail:
+              "執行前系統會評估風險。低風險請求自動放行；高風險或策略敏感操作會被攔截或送入人工覆核佇列。你始終保有控制權。",
+          },
+          {
+            summary: "可信 Agent 執行 → 結果與可驗證收據。",
+            detail:
+              "被選中的 Agent 執行你的任務。完成後你會收到結果與一份可獨立驗證的簽名收據，收據關聯完整審計鏈。",
+          },
+          {
+            summary: "完整審計鏈可追溯，異常行為可追責。",
+            detail:
+              "每一次決策、路由與執行都會被記錄。若出現問題或需證明合規，完整鏈路可查：誰被調用、放行了什麼、交付了什麼。",
+          },
+        ],
+      },
+      finalCta: {
+        heading: "準備好了嗎？",
+        openApp: "打開應用",
+        startBuilding: "開始構建",
+        bookDemo: "預約 Demo",
+      },
+      previewSectionTitle: "產品界面預覽",
+    },
+    footer: {
+      privacy: "隱私",
+      cookies: "Cookies",
+      github: "GitHub",
+      contact: "聯絡我們",
     },
     developers: {
       title: "建立在會話原生網路，而非零散 Agent 呼叫之上。",
@@ -197,6 +349,7 @@ const dictionaries: DictionaryMap = {
       primaryCta: "查看失敗回退與 HITL",
       seoTitle: "Ask 主路徑演示 - GaiaLynk Agent IM",
       seoDescription: "查看需求如何被路由成可信結果，並保留可驗證證據與收據。",
+      demoHeading: "互動演示",
     },
     recovery: {
       title: "失敗回退與 HITL 治理流程。",
@@ -229,7 +382,7 @@ const dictionaries: DictionaryMap = {
   "zh-Hans": {
     localeLabel: "简体中文",
     nav: {
-      ask: "Ask",
+      ask: "Ask 路径",
       developers: "开发者",
       trust: "可信与安全",
       useCases: "应用场景",
@@ -241,6 +394,9 @@ const dictionaries: DictionaryMap = {
       history: "历史",
       connector: "连接器",
       settings: "设置",
+      roadmap: "路线图",
+      pricing: "定价",
+      openApp: "打开应用",
     },
     home: {
       eyebrow: "Agent Internet 的可信协作层",
@@ -257,6 +413,77 @@ const dictionaries: DictionaryMap = {
         demo: "预约 Demo",
         waitlist: "加入等待名单",
       },
+      hero: {
+        eyebrow: "可信 Agent 网关",
+        title: "让每一个被调用的 Agent 都经过验证、受到管控、可被追溯。",
+        subtitle:
+          "每一个被调用的 Agent 都经过身份验证、能力校验和行为追踪——恶意 Agent 被挡在门外，调用全程有策略管控、人工审核和可验证收据。",
+        ctaPrimary: "开始构建",
+        ctaSecondary: "打开应用 →",
+      },
+      valueProposition: {
+        title: "在 Agent 互联网时代，Agent 准入不是功能，而是基础设施。",
+        cards: [
+          {
+            title: "经过验证的 Agent",
+            description:
+              "每个 Agent 在可被调用前都经过身份验证、能力声明与信誉评分。恶意或不可信 Agent 从设计上被拒之门外。",
+          },
+          {
+            title: "策略决定准入边界",
+            description:
+              "由您的组织定义谁在何种条件下可调用哪个 Agent。策略在运行时强制执行——放行、限制、需审批或拒绝。",
+          },
+          {
+            title: "每一步都有据",
+            description:
+              "每次调用都会产生可验证收据。审计链串起决策、人工复核与结果，让您可证明发生了什么以及原因。",
+          },
+        ],
+      },
+      howItWorks: {
+        title: "平台如何确保你调用的 Agent 是可信的？",
+        steps: [
+          {
+            summary: "用户说出需求。",
+            detail:
+              "你用自然语言描述想要什么。平台接收你的意图并在可信管道中路由——无需手动选择 Agent。",
+          },
+          {
+            summary: "平台从经过验证的 Agent 中匹配最合适的（身份校验 ✓ 能力声明 ✓ 信誉评分 ✓）。",
+            detail:
+              "只有通过身份验证、声明能力并保持信誉评分的 Agent 才会被考虑。平台为你的请求选出最合适的 Agent，并在完整可追溯的前提下准备调用。",
+          },
+          {
+            summary: "风险评估 → 高风险操作自动拦截或需人工确认。",
+            detail:
+              "执行前系统会评估风险。低风险请求自动放行；高风险或策略敏感操作会被拦截或送入人工复核队列。你始终保有控制权。",
+          },
+          {
+            summary: "可信 Agent 执行 → 结果与可验证收据。",
+            detail:
+              "被选中的 Agent 执行你的任务。完成后你会收到结果与一份可独立验证的签名收据，收据关联完整审计链。",
+          },
+          {
+            summary: "完整审计链可追溯，异常行为可追责。",
+            detail:
+              "每一次决策、路由与执行都会被记录。若出现问题或需证明合规，完整链路可查：谁被调用、放行了什么、交付了什么。",
+          },
+        ],
+      },
+      finalCta: {
+        heading: "准备好了吗？",
+        openApp: "打开应用",
+        startBuilding: "开始构建",
+        bookDemo: "预约 Demo",
+      },
+      previewSectionTitle: "产品界面预览",
+    },
+    footer: {
+      privacy: "隐私",
+      cookies: "Cookies",
+      github: "GitHub",
+      contact: "联系我们",
     },
     developers: {
       title: "构建在会话原生网络，而不是零散 Agent 调用之上。",
@@ -306,6 +533,7 @@ const dictionaries: DictionaryMap = {
       primaryCta: "查看失败回退与 HITL",
       seoTitle: "Ask 主路径演示 - GaiaLynk Agent IM",
       seoDescription: "查看需求如何被路由为可信结果，并保留可验证证据与收据。",
+      demoHeading: "互动演示",
     },
     recovery: {
       title: "失败回退与 HITL 治理流程。",

@@ -161,7 +161,7 @@ export function AskDemo({ locale }: { locale: Locale }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t.inputPlaceholder}
-            className="mt-2 w-full rounded-md border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted"
+            className="mt-2 w-full rounded-md border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground"
             disabled={status === "loading"}
           />
         </label>
@@ -169,7 +169,7 @@ export function AskDemo({ locale }: { locale: Locale }) {
           <button
             type="submit"
             disabled={status === "loading" || !text.trim()}
-            className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-50"
+            className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
             {status === "loading" ? "…" : t.submit}
           </button>
@@ -195,13 +195,13 @@ export function AskDemo({ locale }: { locale: Locale }) {
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-card p-6">
             <h3 className="text-lg font-semibold text-foreground">{t.summary}</h3>
-            <p className="mt-2 text-sm text-muted">{askResult.result.summary || "—"}</p>
-            <ul className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+            <p className="mt-2 text-sm text-muted-foreground">{askResult.result.summary || "—"}</p>
+            <ul className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
               <li>{t.cost}: {askResult.result.cost_estimate_tokens}</li>
               <li>{t.duration}: {askResult.result.duration_ms}</li>
             </ul>
             {visualization && (
-              <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm text-muted">
+              <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">{t.route}</p>
                 <p>{visualization.route_summary}</p>
                 {visualization.timeline && visualization.timeline.length > 0 && (

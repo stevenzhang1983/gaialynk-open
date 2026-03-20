@@ -1,0 +1,87 @@
+import type { Agent } from "./agent-types";
+
+/**
+ * T-4.1 Mock Agent 数据。API 就绪后由 T-5.2 Agent 目录 API 替代。
+ */
+export const MOCK_AGENTS: Agent[] = [
+  {
+    id: "agent-1",
+    name: "Summary Pro",
+    capabilitySummary: "Summarize long documents and threads with configurable length and style.",
+    reputationScore: 92,
+    verificationStatus: "verified",
+    category: "productivity",
+    identityVerificationStatus: "Verified",
+    capabilityStatement: "Accepts text or document refs; returns summary in specified format (bullet, paragraph, executive). Rate-limited per tenant.",
+    historySuccessRate: 96,
+    riskLevel: "low",
+  },
+  {
+    id: "agent-2",
+    name: "Code Reviewer",
+    capabilitySummary: "Review pull requests and suggest fixes; supports multiple languages.",
+    reputationScore: 88,
+    verificationStatus: "verified",
+    category: "code",
+    identityVerificationStatus: "Verified",
+    capabilityStatement: "Reads repo context and diff; outputs structured review (security, style, logic). Can trigger follow-up actions on approval.",
+    historySuccessRate: 91,
+    riskLevel: "medium",
+  },
+  {
+    id: "agent-3",
+    name: "Research Assistant",
+    capabilitySummary: "Search and synthesize information from allowed sources with citations.",
+    reputationScore: 85,
+    verificationStatus: "verified",
+    category: "research",
+    identityVerificationStatus: "Verified",
+    capabilityStatement: "Query over configured data sources; returns answer with citations. No write access to external systems.",
+    historySuccessRate: 89,
+    riskLevel: "low",
+  },
+  {
+    id: "agent-4",
+    name: "Policy Checker",
+    capabilitySummary: "Check content or actions against configurable policy rules.",
+    reputationScore: 94,
+    verificationStatus: "verified",
+    category: "governance",
+    identityVerificationStatus: "Verified",
+    capabilityStatement: "Evaluates input against policy engine; returns allow/deny plus reason codes. Audit log for every check.",
+    historySuccessRate: 99,
+    riskLevel: "low",
+  },
+  {
+    id: "agent-5",
+    name: "Data Export",
+    capabilitySummary: "Export datasets in requested format with optional transforms.",
+    reputationScore: 78,
+    verificationStatus: "pending",
+    category: "productivity",
+    identityVerificationStatus: "Pending review",
+    capabilityStatement: "Read-only access to specified datasets; exports as CSV/JSON/Excel. Sensitive columns can be redacted by policy.",
+    historySuccessRate: 82,
+    riskLevel: "medium",
+  },
+  {
+    id: "agent-6",
+    name: "Workflow Runner",
+    capabilitySummary: "Execute predefined workflows (e.g. approve + notify + log).",
+    reputationScore: 81,
+    verificationStatus: "verified",
+    category: "governance",
+    identityVerificationStatus: "Verified",
+    capabilityStatement: "Runs workflow definitions with step-by-step execution. High-risk steps require human confirmation.",
+    historySuccessRate: 87,
+    riskLevel: "high",
+  },
+];
+
+export const AGENT_CATEGORIES: { value: Agent["category"]; label: string }[] = [
+  { value: "productivity", label: "Productivity" },
+  { value: "research", label: "Research" },
+  { value: "code", label: "Code" },
+  { value: "governance", label: "Governance" },
+  { value: "other", label: "Other" },
+];

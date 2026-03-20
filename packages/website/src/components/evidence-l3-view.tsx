@@ -44,9 +44,9 @@ export function EvidenceL3View() {
     };
   }, []);
 
-  if (loading) return <p className="text-sm text-muted">Loading L3 evidence…</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">Loading L3 evidence…</p>;
   if (error) return <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>;
-  if (items.length === 0) return <p className="text-sm text-muted">No L3 evidence items in this window. Try mock mode or run mainline with events.</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">No L3 evidence items in this window. Try mock mode or run mainline with events.</p>;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
@@ -65,13 +65,13 @@ export function EvidenceL3View() {
         <tbody>
           {items.map((row) => (
             <tr key={row.audit_event_id} className="border-b border-border last:border-0">
-              <td className="p-3 font-mono text-xs text-muted">{row.audit_event_id.slice(0, 8)}…</td>
-              <td className="p-3 text-muted">{row.timestamp}</td>
+              <td className="p-3 font-mono text-xs text-muted-foreground">{row.audit_event_id.slice(0, 8)}…</td>
+              <td className="p-3 text-muted-foreground">{row.timestamp}</td>
               <td className="p-3 text-foreground">{row.event_type}</td>
-              <td className="p-3 text-muted">{row.policy_hit}</td>
-              <td className="p-3 text-muted">{Array.isArray(row.reason_codes) ? row.reason_codes.join(", ") : "—"}</td>
-              <td className="p-3 text-muted">{Array.isArray(row.receipt_refs) ? row.receipt_refs.join(", ") : "—"}</td>
-              <td className="p-3 font-mono text-xs text-muted">{row.signature_digest ? `${row.signature_digest.slice(0, 12)}…` : "—"}</td>
+              <td className="p-3 text-muted-foreground">{row.policy_hit}</td>
+              <td className="p-3 text-muted-foreground">{Array.isArray(row.reason_codes) ? row.reason_codes.join(", ") : "—"}</td>
+              <td className="p-3 text-muted-foreground">{Array.isArray(row.receipt_refs) ? row.receipt_refs.join(", ") : "—"}</td>
+              <td className="p-3 font-mono text-xs text-muted-foreground">{row.signature_digest ? `${row.signature_digest.slice(0, 12)}…` : "—"}</td>
             </tr>
           ))}
         </tbody>

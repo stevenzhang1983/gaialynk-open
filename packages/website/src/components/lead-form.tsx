@@ -107,11 +107,11 @@ export function LeadForm({ locale, type, submitLabel }: LeadFormProps) {
       <button
         type="submit"
         disabled={status === "loading"}
-        className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-zinc-950 disabled:opacity-60"
+        className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
       >
         {status === "loading" ? "Submitting..." : submitLabel}
       </button>
-      {message ? <p className="text-sm text-muted">{message}</p> : null}
+      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </form>
   );
 }

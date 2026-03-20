@@ -1,0 +1,70 @@
+/**
+ * GaiaLynk 字体与排版 Token（T-1.2）
+ * --font-display / --font-body / --font-noto-sc / --font-noto-tc 由 next/font 注入（见 src/lib/fonts.ts）
+ * 繁简偏好由页面根节点 data-cjk-prefer="sc"|"tc" 切换（PageShell）
+ */
+
+:root {
+  /* —— 字重角色（与 next/font 加载权重一致）—— */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-display: 700; /* Hero / 一级标题 */
+
+  /* —— 字号阶梯（正文固定 rem；展示级流体 clamp）—— */
+  --text-caption: 0.8125rem; /* 13px — 仅辅助说明，尽量少用 */
+  --text-secondary: 0.9375rem; /* 15px */
+  --text-body: 1rem; /* 16px 正文底线 */
+  --text-body-lg: 1.125rem; /* 18px 导语 / 强调段落 */
+  --text-subheading: 1.25rem; /* 20px */
+  --text-h3: clamp(1.25rem, 1vw + 1.1rem, 1.5rem);
+  --text-h2: clamp(1.5rem, 2vw + 1rem, 2rem);
+  --text-h1: clamp(1.875rem, 3vw + 1rem, 2.75rem);
+  /* Hero：桌面有力量感，默认控制约两行以内（依赖容器 max-width 与 clamp 上限） */
+  --text-hero: clamp(2.125rem, 4.2vw + 1.35rem, 3.5rem);
+
+  /* —— 行高 —— */
+  --leading-none: 1.05;
+  --leading-tight: 1.15;
+  --leading-snug: 1.25;
+  --leading-subheading: 1.35;
+  --leading-body: 1.6;
+  --leading-body-relaxed: 1.65; /* 中文混排略松，利于基线节奏 */
+  --leading-caption: 1.45;
+
+  /* —— 字距 —— */
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.025em;
+  --tracking-wide: 0.02em;
+
+  /* —— 西文展示 + 中文回退（默认简体优先）—— */
+  --font-family-display: var(--font-display), var(--font-noto-sc),
+    "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  --font-family-body: var(--font-body), var(--font-noto-sc), "PingFang SC",
+    "Microsoft YaHei", ui-sans-serif, sans-serif;
+}
+
+/* 与 :root 一致；显式声明便于在任意祖先存在 latin 覆盖时仍锁定简体栈（T-6.4 根 layout 不再读请求头） */
+[data-cjk-prefer="sc"] {
+  --font-family-display: var(--font-display), var(--font-noto-sc),
+    "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  --font-family-body: var(--font-body), var(--font-noto-sc), "PingFang SC",
+    "Microsoft YaHei", ui-sans-serif, sans-serif;
+}
+
+[data-cjk-prefer="tc"] {
+  --font-family-display: var(--font-display), var(--font-noto-tc),
+    "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", ui-sans-serif,
+    sans-serif;
+  --font-family-body: var(--font-body), var(--font-noto-tc), "PingFang TC",
+    "Microsoft JhengHei", ui-sans-serif, sans-serif;
+}
+
+/* 英文站：仍以拉丁正文为主，CJK 偶发时走 Noto */
+[data-cjk-prefer="latin"] {
+  --font-family-display: var(--font-display), var(--font-noto-sc),
+    ui-sans-serif, sans-serif;
+  --font-family-body: var(--font-body), var(--font-noto-sc), ui-sans-serif,
+    sans-serif;
+}

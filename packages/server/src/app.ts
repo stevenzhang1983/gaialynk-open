@@ -5,11 +5,15 @@ import {
   addParticipantAsync,
   appendMessageAsync,
   createConversationAsync,
+  deleteConversationAsync,
   getConversationDetailAsync,
   listConversations,
+  listMessagesAsync,
+  type ListConversationsResult,
   type Message,
   resetConversationStore,
 } from "./modules/conversation/conversation.store";
+import { publish as publishMessageStream, subscribe as subscribeMessageStream } from "./modules/conversation/message-stream";
 import {
   createDelegationTicketAsync,
   getDelegationTicketByIdAsync,
@@ -28,10 +32,15 @@ import {
 } from "./modules/conversation/invitation.store";
 import type { Agent } from "./modules/directory/agent.store";
 import {
+  getAgentDetailEnrichedAsync,
+  getAgentStatsAsync,
+} from "./modules/directory/agent-directory.service";
+import {
   getAgentByIdAsync,
   listAgentsAsync,
   registerAgentAsync,
   resetAgentStore,
+  type ListAgentsResult,
   upsertAgentFromNodeAsync,
 } from "./modules/directory/agent.store";
 import { requestAgent } from "./modules/gateway/a2a.gateway";
@@ -50,7 +59,17 @@ import {
   resetReviewDecisionStore,
 } from "./modules/gateway/review-decision.store";
 import {
+  approvalConfirmSchema,
+  approvalRejectSchema,
+} from "./modules/approvals/approval.schema";
+import {
+  listApprovalsAsync,
+  getApprovalDetailAsync,
+  getApprovalChainAsync,
+} from "./modules/approvals/approval.service";
+import {
   emitAuditEventAsync,
+  getAuditEventByIdAsync,
   listAuditEventsAsync,
   resetAuditStore,
 } from "./modules/audit/audit.store";
@@ -173,6 +192,9 @@ import {
   parseActorFromHeaders,
   type ActorContext,
 } from "./infra/identity/actor-context";
+import { registerAuthRoutes } from "./modules/auth/auth.routes";
+import { resetAuthStore } from "./modules/auth/user.store";
+import { registerAgentProviderRoutes } from "./modules/directory/agent-provider.routes";
 
 const conversationTopologyEnum = z.enum(["T1", "T2", "T3", "T4", "T5"]);
 const authorizationModeEnum = z.enum(["user_explicit", "policy_based", "delegated"]);
@@ -345,6 +367,16 @@ const auditEventsQuerySchema = z.object({
   to: z.string().datetime().optional(),
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+const auditTimelineQuerySchema = z.object({
+  conversation_id: z.string().uuid().optional(),
+  agent_id: z.string().uuid().optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  sort: z.enum(["created_at:asc", "created_at:desc"]).optional(),
 });
 
 const createPublicTemplateSchema = z.object({
@@ -657,6 +689,7 @@ const resetAllStores = (): void => {
   resetUserTaskStore();
   resetDisputeStore();
   resetConnectorStore();
+  resetAuthStore();
 };
 
 const escapeCsv = (value: string): string => {
@@ -862,11 +895,23 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     return c.json({ data: conversation }, 201);
   });
 
-  app.get("/api/v1/conversations", async () => {
-    return new Response(JSON.stringify({ data: await listConversations() }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+  app.get("/api/v1/conversations", async (c) => {
+    const cursor = c.req.query("cursor") ?? undefined;
+    const limitRaw = c.req.query("limit");
+    const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
+    const sort = (c.req.query("sort") as "created_at:desc" | "created_at:asc") ?? undefined;
+    const opts =
+      cursor !== undefined || limit !== undefined || sort !== undefined
+        ? { cursor, limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined, sort }
+        : undefined;
+    const result = await listConversations(opts);
+    if (Array.isArray(result)) {
+      return c.json({ data: result }, 200);
+    }
+    const meta = (result as ListConversationsResult).next_cursor
+      ? { next_cursor: (result as ListConversationsResult).next_cursor }
+      : undefined;
+    return c.json({ data: (result as ListConversationsResult).data, meta }, 200);
   });
 
   app.get("/api/v1/conversations/:id", async (c) => {
@@ -878,6 +923,63 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     }
 
     return c.json({ data: detail }, 200);
+  });
+
+  app.delete("/api/v1/conversations/:id", async (c) => {
+    const conversationId = c.req.param("id");
+    const deleted = await deleteConversationAsync(conversationId);
+    if (!deleted) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    return c.json({ data: { id: conversationId, deleted: true } }, 200);
+  });
+
+  app.get("/api/v1/conversations/:id/messages", async (c) => {
+    const conversationId = c.req.param("id");
+    const cursor = c.req.query("cursor") ?? undefined;
+    const limitRaw = c.req.query("limit");
+    const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
+    const sort = (c.req.query("sort") as "created_at:desc" | "created_at:asc") ?? undefined;
+    const opts =
+      cursor !== undefined || limit !== undefined || sort !== undefined
+        ? { cursor, limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined, sort }
+        : undefined;
+    const result = await listMessagesAsync(conversationId, opts);
+    if (result === null) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const meta = result.next_cursor ? { next_cursor: result.next_cursor } : undefined;
+    return c.json({ data: result.data, meta }, 200);
+  });
+
+  app.get("/api/v1/conversations/:id/messages/stream", async (c) => {
+    const conversationId = c.req.param("id");
+    const detail = await getConversationDetailAsync(conversationId);
+    if (!detail) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        const send = (event: string, data: string) => {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
+        };
+        const unsubscribe = subscribeMessageStream(conversationId, (message) => {
+          send("message", JSON.stringify(message));
+        });
+        c.req.raw.signal?.addEventListener?.("abort", () => {
+          unsubscribe();
+          controller.close();
+        });
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   });
 
   app.get("/api/v1/conversations/:id/presence", async (c) => {
@@ -1041,6 +1143,8 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     return c.json({ data: ticket! }, 200);
   });
 
+  registerAgentProviderRoutes(app as unknown as import("hono").Hono);
+
   app.post("/api/v1/agents", async (c) => {
     const payload = registerAgentSchema.parse(await c.req.json());
     const agent = await registerAgentAsync(payload);
@@ -1048,11 +1152,45 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     return c.json({ data: agent }, 201);
   });
 
-  app.get("/api/v1/agents", async () => {
-    return new Response(JSON.stringify({ data: await listAgentsAsync() }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+  app.get("/api/v1/agents", async (c) => {
+    const cursor = c.req.query("cursor") ?? undefined;
+    const limitRaw = c.req.query("limit");
+    const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
+    const sort = (c.req.query("sort") as "created_at:desc" | "created_at:asc") ?? undefined;
+    const search = c.req.query("search")?.trim() ?? undefined;
+    const status = (c.req.query("status") as "active" | "deprecated" | "pending_review") ?? undefined;
+    const source_origin = (c.req.query("source_origin") as
+      | "official"
+      | "self_hosted"
+      | "connected_node"
+      | "vendor") ?? undefined;
+    const agent_type = (c.req.query("agent_type") as "logical" | "execution") ?? undefined;
+    const opts =
+      cursor !== undefined ||
+      limit !== undefined ||
+      sort !== undefined ||
+      (search !== undefined && search.length > 0) ||
+      status !== undefined ||
+      source_origin !== undefined ||
+      agent_type !== undefined
+        ? {
+            cursor,
+            limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined,
+            sort,
+            search: search && search.length > 0 ? search : undefined,
+            status,
+            source_origin,
+            agent_type,
+          }
+        : undefined;
+    const result = await listAgentsAsync(opts);
+    if (Array.isArray(result)) {
+      return c.json({ data: result }, 200);
+    }
+    const meta = (result as ListAgentsResult).next_cursor
+      ? { next_cursor: (result as ListAgentsResult).next_cursor }
+      : undefined;
+    return c.json({ data: (result as ListAgentsResult).data, meta }, 200);
   });
 
   app.get("/api/v1/agents/recommendations", async (c) => {
@@ -1124,13 +1262,35 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     return c.json({ data: scored }, 200);
   });
 
-  app.get("/api/v1/agents/:id", async (c) => {
+  app.get("/api/v1/agents/:id/stats", async (c) => {
     const agentId = c.req.param("id");
-    const agent = await getAgentByIdAsync(agentId);
-    if (!agent) {
+    const stats = await getAgentStatsAsync(agentId);
+    if (!stats) {
       return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
     }
-    return c.json({ data: agent }, 200);
+    return c.json({ data: stats }, 200);
+  });
+
+  app.get("/api/v1/agents/:id", async (c) => {
+    const agentId = c.req.param("id");
+    const enriched = await getAgentDetailEnrichedAsync(agentId);
+    if (!enriched) {
+      return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+    }
+    return c.json(
+      {
+        data: {
+          ...enriched.agent,
+          identity_verified: enriched.identity_verified,
+          reputation_score: enriched.reputation_score,
+          reputation_grade: enriched.reputation_grade,
+          success_rate: enriched.success_rate,
+          risk_level: enriched.risk_level,
+          feedback_summary: enriched.feedback_summary,
+        },
+      },
+      200,
+    );
   });
 
   app.post("/api/v1/public-agent-templates", async (c) => {
@@ -3440,6 +3600,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     if (!userMessage) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
+    publishMessageStream(conversationId, userMessage);
 
     const detail = await getConversationDetailAsync(conversationId);
     if (!detail) {
@@ -3664,6 +3825,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             senderId: agent.id,
             text: a2aResponse.text,
           });
+          if (agentMessage) publishMessageStream(conversationId, agentMessage);
         } catch (error) {
           const reason = error instanceof Error ? error.message : "unknown_error";
           await emitAuditEventAsync({
@@ -3944,6 +4106,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         senderId: agent.id,
         text: a2aResponse.text,
       });
+      if (agentMessage) publishMessageStream(conversationId, agentMessage);
     } catch (error) {
       await emitAuditEventAsync({
         eventType: "invocation.failed",
@@ -4095,6 +4258,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         senderId: agent.id,
         text: a2aResponse.text,
       });
+      if (agentMessage) publishMessageStream(invocation.conversation_id, agentMessage);
     } catch (error) {
       await emitAuditEventAsync({
         eventType: "invocation.failed",
@@ -4411,6 +4575,105 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     );
   });
 
+  // T-5.5 Risk confirmation (approvals) API
+  app.get("/api/v1/approvals", async (c) => {
+    const conversationId = c.req.query("conversation_id")?.trim() || undefined;
+    const data = await listApprovalsAsync({ conversation_id: conversationId });
+    return c.json({ data }, 200);
+  });
+
+  app.get("/api/v1/approvals/:id", async (c) => {
+    const approvalId = c.req.param("id");
+    const detail = await getApprovalDetailAsync(approvalId);
+    if (!detail) {
+      return c.json(
+        { error: { code: "approval_not_found", message: "Approval not found" } },
+        404,
+      );
+    }
+    return c.json({ data: detail }, 200);
+  });
+
+  app.post("/api/v1/approvals/:id/confirm", async (c) => {
+    const approvalId = c.req.param("id");
+    const payload = approvalConfirmSchema.parse(await c.req.json());
+    const invocation = await getInvocationByIdAsync(approvalId);
+    if (!invocation) {
+      return c.json(
+        { error: { code: "approval_not_found", message: "Approval not found" } },
+        404,
+      );
+    }
+    const delegated = await app.request(`/api/v1/invocations/${approvalId}/confirm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approver_id: payload.approver_id }),
+    });
+    const delegatedBody = await delegated.json();
+    return c.json(delegatedBody, delegated.status as 200 | 400 | 404 | 409 | 422 | 502);
+  });
+
+  app.post("/api/v1/approvals/:id/reject", async (c) => {
+    const approvalId = c.req.param("id");
+    const payload = approvalRejectSchema.parse(await c.req.json());
+    const invocation = await getInvocationByIdAsync(approvalId);
+    if (!invocation) {
+      return c.json(
+        { error: { code: "approval_not_found", message: "Approval not found" } },
+        404,
+      );
+    }
+    const existingDenied = await getDeniedDecisionAsync(approvalId);
+    if (existingDenied) {
+      return c.json(
+        { data: existingDenied, meta: { idempotent: true } },
+        200,
+      );
+    }
+    if (invocation.status === "completed") {
+      return c.json(
+        {
+          error: {
+            code: "invocation_not_actionable",
+            message: "Invocation already completed",
+          },
+        },
+        409,
+      );
+    }
+    const denied = await denyInvocationAsync({
+      invocationId: approvalId,
+      approverId: payload.approver_id,
+      reason: payload.reason,
+    });
+    await emitAuditEventAsync({
+      eventType: "invocation.denied_by_reviewer",
+      conversationId: invocation.conversation_id,
+      agentId: invocation.agent_id,
+      actorType: "user",
+      actorId: payload.approver_id,
+      payload: {
+        invocation_id: invocation.id,
+        reason: payload.reason ?? "not_provided",
+      },
+      correlationId: randomUUID(),
+    });
+    return c.json({ data: denied, meta: { idempotent: false } }, 200);
+  });
+
+  app.get("/api/v1/approvals/:id/chain", async (c) => {
+    const approvalId = c.req.param("id");
+    const invocation = await getInvocationByIdAsync(approvalId);
+    if (!invocation) {
+      return c.json(
+        { error: { code: "approval_not_found", message: "Approval not found" } },
+        404,
+      );
+    }
+    const data = await getApprovalChainAsync(approvalId);
+    return c.json({ data }, 200);
+  });
+
   app.get("/api/v1/reputation/agents/:id", async (c) => {
     const agentId = c.req.param("id");
     const agent = await getAgentByIdAsync(agentId);
@@ -4529,6 +4792,65 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     });
   });
 
+  app.get("/api/v1/audit/timeline", async (c) => {
+    const parsed = auditTimelineQuerySchema.safeParse({
+      conversation_id: c.req.query("conversation_id"),
+      agent_id: c.req.query("agent_id"),
+      from: c.req.query("from"),
+      to: c.req.query("to"),
+      cursor: c.req.query("cursor"),
+      limit: c.req.query("limit"),
+      sort: c.req.query("sort"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: {
+            code: "invalid_audit_timeline_query",
+            message: "Invalid audit timeline query",
+          },
+        },
+        400,
+      );
+    }
+
+    const {
+      conversation_id: conversationId,
+      agent_id: agentId,
+      from,
+      to,
+      cursor,
+      limit,
+      sort,
+    } = parsed.data;
+    const sortOrder = sort === "created_at:asc" ? "asc" : "desc";
+    const result = await listAuditEventsAsync({
+      conversationId,
+      agentId,
+      from,
+      to,
+      cursor,
+      limit,
+      sortOrder,
+    });
+
+    return c.json({ data: result.data, meta: { next_cursor: result.nextCursor } }, 200);
+  });
+
+  app.get("/api/v1/audit/events/:id", async (c) => {
+    const eventId = c.req.param("id");
+    const event = await getAuditEventByIdAsync(eventId);
+
+    if (!event) {
+      return c.json(
+        { error: { code: "audit_event_not_found", message: "Audit event not found" } },
+        404,
+      );
+    }
+
+    return c.json({ data: event }, 200);
+  });
+
   app.get("/api/v1/security/injection-alerts", async (c) => {
     const parsed = injectionAlertsQuerySchema.safeParse({
       conversation_id: c.req.query("conversation_id"),
@@ -4582,6 +4904,18 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       },
       200,
     );
+  });
+
+  app.get("/api/v1/receipts/:id/verify", async (c) => {
+    const receiptId = c.req.param("id");
+    const receipt = await getReceiptByIdAsync(receiptId);
+
+    if (!receipt) {
+      return c.json({ error: { code: "receipt_not_found", message: "Receipt not found" } }, 404);
+    }
+
+    const is_valid = await verifyReceiptAsync(receipt);
+    return c.json({ data: { receipt_id: receiptId, is_valid } }, 200);
   });
 
   app.post("/api/v1/nodes/register", async (c) => {
@@ -5196,6 +5530,8 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       200,
     );
   });
+
+  registerAuthRoutes(app);
 
   return app;
 };

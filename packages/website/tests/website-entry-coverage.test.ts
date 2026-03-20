@@ -32,8 +32,8 @@ describe("website entry coverage", () => {
   });
 
   test("use-cases CTAs keep analytics tracking payload", () => {
-    const listPage = readFileSync("src/app/[locale]/use-cases/page.tsx", "utf8");
-    const detailPage = readFileSync("src/app/[locale]/use-cases/[slug]/page.tsx", "utf8");
+    const listPage = readFileSync("src/app/[locale]/(marketing)/use-cases/page.tsx", "utf8");
+    const detailPage = readFileSync("src/app/[locale]/(marketing)/use-cases/[slug]/page.tsx", "utf8");
     expect(listPage.includes("eventName=")).toBe(true);
     expect(listPage.includes("eventPayload=")).toBe(true);
     expect(detailPage.includes("eventName=")).toBe(true);

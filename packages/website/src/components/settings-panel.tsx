@@ -63,7 +63,7 @@ export function SettingsPanel() {
   }
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading identity...</p>;
+    return <p className="text-sm text-muted-foreground">Loading identity...</p>;
   }
 
   return (
@@ -83,14 +83,14 @@ export function SettingsPanel() {
               type="button"
               onClick={handleSignIn}
               disabled={!inputUserId.trim()}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               Sign in
             </button>
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <p className="text-sm text-muted">Signed in as: <span className="font-medium text-foreground">{userId}</span></p>
+            <p className="text-sm text-muted-foreground">Signed in as: <span className="font-medium text-foreground">{userId}</span></p>
             <button
               type="button"
               onClick={() => void signOut()}
@@ -106,7 +106,7 @@ export function SettingsPanel() {
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-lg font-semibold text-foreground">Notification Preferences</h2>
           <div className="mt-3 space-y-3 text-sm">
-            <label className="flex items-center gap-2 text-muted">
+            <label className="flex items-center gap-2 text-muted-foreground">
               <input
                 type="checkbox"
                 checked={prefs.channels.includes("in_app")}
@@ -121,7 +121,7 @@ export function SettingsPanel() {
               />
               In-app
             </label>
-            <label className="flex items-center gap-2 text-muted">
+            <label className="flex items-center gap-2 text-muted-foreground">
               <input
                 type="checkbox"
                 checked={prefs.channels.includes("email")}
@@ -136,7 +136,7 @@ export function SettingsPanel() {
               />
               Email
             </label>
-            <label className="block text-muted">
+            <label className="block text-muted-foreground">
               Strategy
               <select
                 value={prefs.strategy}
@@ -156,7 +156,7 @@ export function SettingsPanel() {
               type="button"
               onClick={handleSavePrefs}
               disabled={saving || loadingPrefs || prefs.channels.length === 0}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save preferences"}
             </button>
@@ -164,7 +164,7 @@ export function SettingsPanel() {
         </section>
       )}
 
-      {message && <p className="text-sm text-muted">{message}</p>}
+      {message && <p className="text-sm text-muted-foreground">{message}</p>}
     </div>
   );
 }

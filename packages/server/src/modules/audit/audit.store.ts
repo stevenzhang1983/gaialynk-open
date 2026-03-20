@@ -35,6 +35,7 @@ interface ListAuditEventsQuery {
   to?: string;
   cursor?: string;
   limit?: number;
+  sortOrder?: "asc" | "desc";
 }
 
 interface ListAuditEventsResult {
@@ -97,8 +98,13 @@ export const listAuditEvents = (query?: ListAuditEventsQuery): ListAuditEventsRe
     return true;
   });
 
-  const page = filtered.slice(startIndex, startIndex + limit);
-  const nextCursor = startIndex + limit < filtered.length ? String(startIndex + limit) : null;
+  const order = query?.sortOrder === "desc" ? "desc" : "asc";
+  const sorted =
+    order === "desc"
+      ? [...filtered].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+      : filtered;
+  const page = sorted.slice(startIndex, startIndex + limit);
+  const nextCursor = startIndex + limit < sorted.length ? String(startIndex + limit) : null;
 
   return {
     data: page,
@@ -187,6 +193,7 @@ export const listAuditEventsAsync = async (queryParams?: ListAuditEventsQuery): 
   const offsetParam = `$${values.length}`;
 
   const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+  const orderDir = queryParams?.sortOrder === "desc" ? "DESC" : "ASC";
   const rows = await query<{
     id: string;
     event_type: string;
@@ -202,7 +209,7 @@ export const listAuditEventsAsync = async (queryParams?: ListAuditEventsQuery): 
     `SELECT id, event_type, conversation_id, agent_id, actor_type, actor_id, payload, trust_decision, correlation_id, created_at::text
      FROM audit_events
      ${where}
-     ORDER BY created_at ASC
+     ORDER BY created_at ${orderDir}
      LIMIT ${limitParam}
      OFFSET ${offsetParam}`,
     values,
@@ -221,6 +228,39 @@ export const listAuditEventsAsync = async (queryParams?: ListAuditEventsQuery): 
     data: rows,
     nextCursor,
   };
+};
+
+export const getAuditEventById = (eventId: string): AuditEvent | null => {
+  if (isPostgresEnabled()) {
+    throw new Error("Use getAuditEventByIdAsync in PostgreSQL mode");
+  }
+  return auditEvents.find((e) => e.id === eventId) ?? null;
+};
+
+export const getAuditEventByIdAsync = async (eventId: string): Promise<AuditEvent | null> => {
+  if (!isPostgresEnabled()) {
+    return getAuditEventById(eventId);
+  }
+
+  const rows = await query<{
+    id: string;
+    event_type: string;
+    conversation_id?: string;
+    agent_id?: string;
+    actor_type: "user" | "agent" | "system";
+    actor_id: string;
+    payload: Record<string, unknown>;
+    trust_decision?: TrustDecision;
+    correlation_id: string;
+    created_at: string;
+  }>(
+    `SELECT id, event_type, conversation_id, agent_id, actor_type, actor_id, payload, trust_decision, correlation_id, created_at::text
+     FROM audit_events
+     WHERE id = $1`,
+    [eventId],
+  );
+
+  return rows[0] ?? null;
 };
 
 export const resetAuditStore = (): void => {

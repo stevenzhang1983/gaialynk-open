@@ -85,10 +85,10 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
-          <p className="text-sm text-muted">Live website funnel snapshot for entry conversion decisions.</p>
+          <p className="text-sm text-muted-foreground">Live website funnel snapshot for entry conversion decisions.</p>
         </div>
         <label className="space-y-2 text-sm">
-          <span className="text-muted">Locale</span>
+          <span className="text-muted-foreground">Locale</span>
           <select
             className="rounded-md border border-border bg-card px-3 py-2"
             value={locale}
@@ -106,16 +106,16 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
       <div className="grid gap-4 md:grid-cols-3">
         {metricCards.map((item) => (
           <div key={item.label} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs uppercase tracking-wide text-muted">{item.label}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.label}</p>
             <p className="mt-2 text-2xl font-semibold">{item.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold">Conversion Rates</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>Start Building CTR: {snapshot?.rates.startBuildingCtr ?? 0}%</li>
             <li>Docs Activation Rate: {snapshot?.rates.docsActivationRate ?? 0}%</li>
             <li>Activation Completion Rate: {snapshot?.rates.activationCompletionRate ?? 0}%</li>
@@ -125,8 +125,34 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
           </ul>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Consumer Funnel</h2>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li>Open App Clicks: {snapshot?.consumerFunnel.openAppClicks ?? 0}</li>
+            <li>Browse Agent Directory: {snapshot?.consumerFunnel.browseAgentsViews ?? 0}</li>
+            <li>Login Trigger: {snapshot?.consumerFunnel.loginTriggers ?? 0}</li>
+            <li>First Conversation: {snapshot?.consumerFunnel.firstConversations ?? 0}</li>
+            <li>First Result: {snapshot?.consumerFunnel.firstResults ?? 0}</li>
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Open App → Browse Directory: {snapshot?.consumerFunnel.rates.openAppToBrowseAgents ?? 0}%
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Provider Funnel</h2>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li>Start Building Clicks: {snapshot?.providerFunnel.startBuildingClicks ?? 0}</li>
+            <li>Read Quickstart Docs: {snapshot?.providerFunnel.readDocsClicks ?? 0}</li>
+            <li>Login Trigger: {snapshot?.providerFunnel.loginTriggers ?? 0}</li>
+            <li>Agent Info Filled: {snapshot?.providerFunnel.agentInfoFilled ?? 0}</li>
+            <li>First Test Call Success: {snapshot?.providerFunnel.firstTestCalls ?? 0}</li>
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Start Building → Read Docs: {snapshot?.providerFunnel.rates.startBuildingToReadDocs ?? 0}%
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-sm font-semibold">Top CTA IDs</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             {(snapshot?.topCtas ?? []).map((item) => (
               <li key={item.key}>
                 {item.key}: {item.count}
@@ -138,7 +164,7 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Top Pages by Events</h2>
-        <div className="mt-3 space-y-2 text-sm text-muted">
+        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
           {(snapshot?.topPages ?? []).map((item) => (
             <div key={item.key} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
               <span>{item.key}</span>
@@ -150,14 +176,14 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Entry Path Funnel (Home to Ask to Recovery to Subscriptions to Waitlist)</h2>
-        <ul className="mt-3 space-y-2 text-sm text-muted">
+        <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li>Home Views: {snapshot?.pathFunnel.homeViews ?? 0}</li>
           <li>Ask Views: {snapshot?.pathFunnel.askViews ?? 0}</li>
           <li>Recovery Views: {snapshot?.pathFunnel.recoveryViews ?? 0}</li>
           <li>Subscriptions Views: {snapshot?.pathFunnel.subscriptionsViews ?? 0}</li>
           <li>Waitlist Submits: {snapshot?.pathFunnel.waitlistSubmits ?? 0}</li>
         </ul>
-        <ul className="mt-3 space-y-2 text-xs text-muted">
+        <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
           <li>Home to Ask: {snapshot?.pathFunnel.rates.homeToAsk ?? 0}%</li>
           <li>Ask to Recovery: {snapshot?.pathFunnel.rates.askToRecovery ?? 0}%</li>
           <li>Recovery to Subscriptions: {snapshot?.pathFunnel.rates.recoveryToSubscriptions ?? 0}%</li>
@@ -172,13 +198,13 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
               <p>{alert.message}</p>
             </div>
           ))}
-          {!snapshot?.pathFunnel.alerts?.length ? <p className="text-muted">No entry path alerts triggered.</p> : null}
+          {!snapshot?.pathFunnel.alerts?.length ? <p className="text-muted-foreground">No entry path alerts triggered.</p> : null}
         </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Suspected Traffic Trend (24h)</h2>
-        <div className="mt-3 space-y-2 text-xs text-muted">
+        <div className="mt-3 space-y-2 text-xs text-muted-foreground">
           {(snapshot?.suspectedByHour24h ?? []).map((item) => (
             <div key={item.hourOffset} className="grid grid-cols-[70px_1fr_64px] items-center gap-3">
               <span>H-{item.hourOffset}</span>
@@ -196,7 +222,7 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Funnel Alerts</h2>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted-foreground">
           Thresholds: CTR ≥ {snapshot?.thresholds.minStartBuildingCtrPct ?? 0}% / Submit ≥{" "}
           {snapshot?.thresholds.minSubmitRatePct ?? 0}% / Suspected ≤ {snapshot?.thresholds.maxSuspectedTrafficSharePct ?? 0}%
         </p>
@@ -214,14 +240,14 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
               <p>{alert.message}</p>
             </div>
           ))}
-          {!snapshot?.alerts?.length ? <p className="text-muted">No funnel alerts triggered.</p> : null}
+          {!snapshot?.alerts?.length ? <p className="text-muted-foreground">No funnel alerts triggered.</p> : null}
         </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Locale Diagnostics</h2>
-        <p className="mt-1 text-xs text-muted">Compare locale-level CTR, submit rate, and suspected traffic share.</p>
-        <div className="mt-3 space-y-2 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted-foreground">Compare locale-level CTR, submit rate, and suspected traffic share.</p>
+        <div className="mt-3 space-y-2 text-xs text-muted-foreground">
           {(snapshot?.localeDiagnostics ?? []).map((item) => (
             <div key={item.locale} className="grid grid-cols-[80px_1fr_1fr_1fr] gap-3 rounded-md border border-border px-3 py-2">
               <span>{item.locale}</span>
@@ -242,7 +268,7 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
               </p>
             </div>
           ))}
-          {!snapshot?.localeGapAlerts?.length ? <p className="text-muted">No locale gap alert triggered.</p> : null}
+          {!snapshot?.localeGapAlerts?.length ? <p className="text-muted-foreground">No locale gap alert triggered.</p> : null}
         </div>
       </div>
 
@@ -257,16 +283,16 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
             Copy Markdown
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted-foreground">
           Paste into weekly review doc. Includes funnel alerts, locale diagnostics, and Alert → Hypothesis → Change → Recovery template for at least one experiment per week.
         </p>
-        <pre className="mt-3 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted">
+        <pre className="mt-3 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted-foreground">
           {weeklyReviewMarkdown || "Loading snapshot..."}
         </pre>
-        {copyStatus ? <p className="mt-2 text-xs text-muted">{copyStatus}</p> : null}
+        {copyStatus ? <p className="mt-2 text-xs text-muted-foreground">{copyStatus}</p> : null}
       </div>
 
-      <p className="text-xs text-muted">Updated at: {generatedAt || "N/A"}</p>
+      <p className="text-xs text-muted-foreground">Updated at: {generatedAt || "N/A"}</p>
     </section>
   );
 }

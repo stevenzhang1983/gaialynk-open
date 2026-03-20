@@ -51,8 +51,8 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
     {
       track: "Node Collaboration",
       pageModule: "Use Cases Node Collaboration",
-      status: "Now",
-      cta: "Try This Workflow",
+      status: "Coming Soon",
+      cta: "Book a Demo",
       productPath: "/en/use-cases/node-collaboration",
       requiredApiCapabilities: ["nodes", "invocations"],
     },
@@ -133,8 +133,8 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
     {
       track: "節點跨邊界協作",
       pageModule: "Use Cases Node Collaboration",
-      status: "Now",
-      cta: "試用這個流程",
+      status: "Coming Soon",
+      cta: "預約 Demo",
       productPath: "/zh-Hant/use-cases/node-collaboration",
       requiredApiCapabilities: ["nodes", "invocations"],
     },
@@ -215,8 +215,8 @@ export const VISION_TRACKS_BY_LOCALE: Record<Locale, VisionTrack[]> = {
     {
       track: "节点跨边界协作",
       pageModule: "Use Cases Node Collaboration",
-      status: "Now",
-      cta: "试用这个流程",
+      status: "Coming Soon",
+      cta: "预约 Demo",
       productPath: "/zh-Hans/use-cases/node-collaboration",
       requiredApiCapabilities: ["nodes", "invocations"],
     },

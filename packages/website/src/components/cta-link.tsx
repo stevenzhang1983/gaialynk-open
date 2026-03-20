@@ -14,7 +14,7 @@ type CtaLinkProps = {
 
 export function CtaLink({ href, children, primary = false, eventName, eventPayload }: CtaLinkProps) {
   const className = primary
-    ? "inline-flex items-center rounded-md bg-primary px-5 py-3 text-sm font-semibold text-zinc-950 hover:bg-sky-300"
+    ? "inline-flex items-center rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
     : "inline-flex items-center rounded-md border border-border px-5 py-3 text-sm font-semibold text-foreground hover:border-primary hover:text-primary";
 
   return (

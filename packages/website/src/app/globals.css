@@ -1,13 +1,15 @@
+@import "../../design-tokens/colors.css";
+@import "../../design-tokens/typography.css";
+@import "../../design-tokens/effects.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
-
 body {
-  @apply bg-background text-foreground antialiased;
+  @apply bg-background text-foreground antialiased text-body font-normal;
+  font-family: var(--font-family-body);
+  font-feature-settings: "kern" 1;
 }
 
 a {

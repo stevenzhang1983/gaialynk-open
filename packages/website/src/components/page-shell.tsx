@@ -10,18 +10,31 @@ type PageShellProps = {
   children: ReactNode;
 };
 
+function cjkPrefer(locale: Locale): "tc" | "sc" | "latin" {
+  if (locale === "zh-Hant") {
+    return "tc";
+  }
+  if (locale === "zh-Hans") {
+    return "sc";
+  }
+  return "latin";
+}
+
 export function PageShell({ locale, children }: PageShellProps) {
   const dict = getDictionary(locale);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="min-h-screen bg-background font-sans"
+      data-cjk-prefer={cjkPrefer(locale)}
+    >
       <PageViewTracker locale={locale} />
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Link href={`/${locale}`} className="text-sm font-semibold text-foreground">
             GaiaLynk Agent IM
           </Link>
-          <nav className="flex flex-wrap items-center gap-4 text-sm text-muted">
+          <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <Link href={`/${locale}/ask`} className="hover:text-foreground">
               {dict.nav.ask}
             </Link>
@@ -58,16 +71,13 @@ export function PageShell({ locale, children }: PageShellProps) {
             <Link href={`/${locale}/developers`} className="hover:text-foreground">
               {dict.nav.developers}
             </Link>
-            <Link href={`/${locale}/docs`} className="hover:text-foreground">
-              {dict.nav.docs}
-            </Link>
             <LangSwitcher currentLocale={locale} />
           </nav>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-12">{children}</main>
       <footer className="border-t border-border py-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-xs text-muted">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-xs text-muted-foreground">
           <span>GaiaLynk Agent IM</span>
           <div className="flex items-center gap-4">
             <Link href={`/${locale}/privacy`} className="hover:text-foreground">

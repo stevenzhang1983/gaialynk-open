@@ -196,8 +196,8 @@ export function RecoveryHitlDemo({ locale }: { locale: Locale }) {
   if (!isAuthenticated) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
-        <p className="text-muted">{authCopy.loginRequired}</p>
-        <p className="mt-2 text-sm text-muted">{authCopy.loginCta}</p>
+        <p className="text-muted-foreground">{authCopy.loginRequired}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{authCopy.loginCta}</p>
       </div>
     );
   }
@@ -223,9 +223,9 @@ export function RecoveryHitlDemo({ locale }: { locale: Locale }) {
       )}
 
       {loading && items.length === 0 ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted">{t.empty}</p>
+        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{t.empty}</p>
       ) : (
         <ul className="space-y-4">
           {items.map((item) => (
@@ -238,10 +238,10 @@ export function RecoveryHitlDemo({ locale }: { locale: Locale }) {
                   <span className="font-medium text-foreground">{t.invocationId}:</span>{" "}
                   <code className="rounded bg-muted px-1">{item.invocation_id}</code>
                 </p>
-                <p className="text-muted">
+                <p className="text-muted-foreground">
                   {t.conversationId}: {item.conversation_id} · {t.agentId}: {item.agent_id}
                 </p>
-                <p className="text-muted">
+                <p className="text-muted-foreground">
                   {item.status} · {item.created_at}
                 </p>
               </div>
@@ -254,7 +254,7 @@ export function RecoveryHitlDemo({ locale }: { locale: Locale }) {
                     })
                   }
                   disabled={!!actionLoading[item.invocation_id]}
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
                 >
                   {actionLoading[item.invocation_id] === "approve" ? "…" : t.approve}
                 </button>
@@ -329,7 +329,7 @@ export function RecoveryHitlDemo({ locale }: { locale: Locale }) {
                   (modal.action === "ask-more-info" || modal.action === "delegate") &&
                   !modal.value.trim()
                 }
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {t.submit}
               </button>

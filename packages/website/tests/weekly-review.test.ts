@@ -63,6 +63,32 @@ describe("weekly review markdown", () => {
             worstLocale: "zh-Hans",
           },
         ],
+        consumerFunnel: {
+          openAppClicks: 0,
+          browseAgentsViews: 0,
+          loginTriggers: 0,
+          firstConversations: 0,
+          firstResults: 0,
+          rates: {
+            openAppToBrowseAgents: 0,
+            browseAgentsToLoginTriggers: 0,
+            loginTriggersToFirstConversations: 0,
+            firstConversationsToFirstResults: 0,
+          },
+        },
+        providerFunnel: {
+          startBuildingClicks: 0,
+          readDocsClicks: 0,
+          loginTriggers: 0,
+          agentInfoFilled: 0,
+          firstTestCalls: 0,
+          rates: {
+            startBuildingToReadDocs: 0,
+            readDocsToLoginTriggers: 0,
+            loginTriggersToAgentInfoFilled: 0,
+            agentInfoFilledToFirstTestCalls: 0,
+          },
+        },
         pathFunnel: {
           homeViews: 100,
           askViews: 20,

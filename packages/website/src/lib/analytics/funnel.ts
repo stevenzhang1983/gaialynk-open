@@ -17,6 +17,46 @@ type FunnelCounts = {
   waitlistSubmits: number;
 };
 
+type ConsumerFunnelCounts = {
+  openAppClicks: number;
+  browseAgentsViews: number;
+  loginTriggers: number;
+  firstConversations: number;
+  firstResults: number;
+};
+
+type ConsumerFunnelRates = {
+  openAppToBrowseAgents: number;
+  browseAgentsToLoginTriggers: number;
+  loginTriggersToFirstConversations: number;
+  firstConversationsToFirstResults: number;
+};
+
+type ConsumerFunnel = {
+  counts: ConsumerFunnelCounts;
+  rates: ConsumerFunnelRates;
+};
+
+type ProviderFunnelCounts = {
+  startBuildingClicks: number;
+  readDocsClicks: number;
+  loginTriggers: number;
+  agentInfoFilled: number;
+  firstTestCalls: number;
+};
+
+type ProviderFunnelRates = {
+  startBuildingToReadDocs: number;
+  readDocsToLoginTriggers: number;
+  loginTriggersToAgentInfoFilled: number;
+  agentInfoFilledToFirstTestCalls: number;
+};
+
+type ProviderFunnel = {
+  counts: ProviderFunnelCounts;
+  rates: ProviderFunnelRates;
+};
+
 type BreakdownItem = {
   key: string;
   count: number;
@@ -107,6 +147,22 @@ export type FunnelSnapshot = {
   localeDiagnostics: LocaleDiagnosticItem[];
   localeGapThresholds: LocaleGapThresholds;
   localeGapAlerts: LocaleGapAlert[];
+  consumerFunnel: {
+    openAppClicks: number;
+    browseAgentsViews: number;
+    loginTriggers: number;
+    firstConversations: number;
+    firstResults: number;
+    rates: ConsumerFunnelRates;
+  };
+  providerFunnel: {
+    startBuildingClicks: number;
+    readDocsClicks: number;
+    loginTriggers: number;
+    agentInfoFilled: number;
+    firstTestCalls: number;
+    rates: ProviderFunnelRates;
+  };
   pathFunnel: {
     homeViews: number;
     askViews: number;
@@ -228,6 +284,35 @@ export function buildFunnelSnapshot(
   const last24hThreshold = nowMs - 24 * 60 * 60 * 1000;
   const thresholds = resolveThresholds(thresholdOverrides);
   const localeGapThresholds = resolveLocaleGapThresholds(localeGapThresholdOverrides);
+
+  const consumerCounts: ConsumerFunnelCounts = {
+    openAppClicks: filtered.filter((event) => event.name === "cta_click" && event.payload.cta_id === "open_app").length,
+    browseAgentsViews: filtered.filter((event) => event.name === "consumer_browse_agents").length,
+    loginTriggers: filtered.filter((event) => event.name === "consumer_login_trigger").length,
+    firstConversations: filtered.filter((event) => event.name === "consumer_first_conversation").length,
+    firstResults: filtered.filter((event) => event.name === "consumer_first_result").length,
+  };
+  const consumerRates: ConsumerFunnelRates = {
+    openAppToBrowseAgents: rate(consumerCounts.browseAgentsViews, consumerCounts.openAppClicks),
+    browseAgentsToLoginTriggers: rate(consumerCounts.loginTriggers, consumerCounts.browseAgentsViews),
+    loginTriggersToFirstConversations: rate(consumerCounts.firstConversations, consumerCounts.loginTriggers),
+    firstConversationsToFirstResults: rate(consumerCounts.firstResults, consumerCounts.firstConversations),
+  };
+  const providerCounts: ProviderFunnelCounts = {
+    startBuildingClicks: filtered.filter((event) => event.name === "cta_click" && event.payload.cta_id === "start_building").length,
+    readDocsClicks: filtered.filter(
+      (event) => event.name === "docs_click" && event.payload.cta_id === "read_quickstart",
+    ).length,
+    loginTriggers: filtered.filter((event) => event.name === "provider_login_trigger").length,
+    agentInfoFilled: filtered.filter((event) => event.name === "provider_agent_info_filled").length,
+    firstTestCalls: filtered.filter((event) => event.name === "provider_first_test_call_success").length,
+  };
+  const providerRates: ProviderFunnelRates = {
+    startBuildingToReadDocs: rate(providerCounts.readDocsClicks, providerCounts.startBuildingClicks),
+    readDocsToLoginTriggers: rate(providerCounts.loginTriggers, providerCounts.readDocsClicks),
+    loginTriggersToAgentInfoFilled: rate(providerCounts.agentInfoFilled, providerCounts.loginTriggers),
+    agentInfoFilledToFirstTestCalls: rate(providerCounts.firstTestCalls, providerCounts.agentInfoFilled),
+  };
 
   const counts: FunnelCounts = {
     homeViews: filtered.filter((event) => event.name === "page_view" && (event.payload.page === "home" || event.payload.page.endsWith(`/${event.payload.locale}`))).length,
@@ -427,6 +512,22 @@ export function buildFunnelSnapshot(
     localeDiagnostics,
     localeGapThresholds,
     localeGapAlerts,
+    consumerFunnel: {
+      openAppClicks: consumerCounts.openAppClicks,
+      browseAgentsViews: consumerCounts.browseAgentsViews,
+      loginTriggers: consumerCounts.loginTriggers,
+      firstConversations: consumerCounts.firstConversations,
+      firstResults: consumerCounts.firstResults,
+      rates: consumerRates,
+    },
+    providerFunnel: {
+      startBuildingClicks: providerCounts.startBuildingClicks,
+      readDocsClicks: providerCounts.readDocsClicks,
+      loginTriggers: providerCounts.loginTriggers,
+      agentInfoFilled: providerCounts.agentInfoFilled,
+      firstTestCalls: providerCounts.firstTestCalls,
+      rates: providerRates,
+    },
     pathFunnel: {
       ...pathFunnelCounts,
       rates: pathFunnelRates,

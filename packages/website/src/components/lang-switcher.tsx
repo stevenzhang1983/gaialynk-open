@@ -15,7 +15,7 @@ export function LangSwitcher({ currentLocale }: LangSwitcherProps) {
   const basePath = pathname || `/${currentLocale}`;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-muted">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
       {SUPPORTED_LOCALES.map((locale) => {
         const active = locale === currentLocale;
         return (

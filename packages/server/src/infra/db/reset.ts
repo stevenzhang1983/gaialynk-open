@@ -8,6 +8,9 @@ const resetDatabase = async (): Promise<void> => {
 
   await pool.query(`
     TRUNCATE TABLE
+      refresh_tokens,
+      oauth_accounts,
+      users,
       ask_runs,
       ask_sessions,
       template_listing_applications,

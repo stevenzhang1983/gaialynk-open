@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getDictionary } from "@/content/dictionaries";
-import { PageShell } from "@/components/page-shell";
 import { isSupportedLocale, SUPPORTED_LOCALES } from "@/lib/i18n/locales";
 
 export function generateStaticParams() {
@@ -39,6 +38,9 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Locale 层仅做路由与 i18n 参数校验；官网区 / 产品区各自使用 (marketing)/layout 与 (product)/layout（T-2.1 双 Layout 架构）。
+ */
 export default async function LocaleLayout({
   children,
   params,
@@ -51,5 +53,5 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  return <PageShell locale={locale}>{children}</PageShell>;
+  return <>{children}</>;
 }

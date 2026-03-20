@@ -22,7 +22,7 @@ export function SimplePage({ locale, pageKey, primaryHref }: SimplePageProps) {
   return (
     <section className="space-y-6">
       <h1 className="max-w-3xl text-4xl font-semibold tracking-tight">{copy.title}</h1>
-      <p className="max-w-3xl text-base text-muted">{copy.description}</p>
+      <p className="max-w-3xl text-base text-muted-foreground">{copy.description}</p>
       <CtaLink primary href={primaryHref}>
         {copy.primaryCta}
       </CtaLink>

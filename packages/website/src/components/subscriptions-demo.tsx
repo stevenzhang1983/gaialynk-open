@@ -270,8 +270,8 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
   if (!isAuthenticated) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
-        <p className="text-muted">{authCopy.loginRequired}</p>
-        <p className="mt-2 text-sm text-muted">{authCopy.loginCta}</p>
+        <p className="text-muted-foreground">{authCopy.loginRequired}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{authCopy.loginCta}</p>
       </div>
     );
   }
@@ -320,7 +320,7 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
 
       <form onSubmit={createTask} className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-lg font-semibold text-foreground">{t.create}</h3>
-        <p className="mt-1 text-xs text-muted">{t.userId}: {userId}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t.userId}: {userId}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="font-medium text-foreground">{t.name}</span>
@@ -346,16 +346,16 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
         <button
           type="submit"
           disabled={createSubmitting || !createName.trim() || !createCron.trim()}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           {createSubmitting ? "…" : t.create}
         </button>
       </form>
 
       {loading && tasks.length === 0 ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : tasks.length === 0 ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted">{t.empty}</p>
+        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{t.empty}</p>
       ) : (
         <ul className="space-y-4">
           {tasks.map((task) => (
@@ -363,10 +363,10 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-medium text-foreground">{task.name}</p>
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {task.schedule_cron} · {t.status}: {task.status}
                   </p>
-                  <p className="text-xs text-muted">{task.id}</p>
+                  <p className="text-xs text-muted-foreground">{task.id}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {task.status === "draft" && (
@@ -374,7 +374,7 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
                       type="button"
                       onClick={() => runAction(task.id, "resume")}
                       disabled={!!actionLoading[task.id]}
-                      className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                      className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                     >
                       {actionLoading[task.id] === "resume" ? "…" : t.resume}
                     </button>
@@ -461,7 +461,7 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
               </button>
             </div>
             {historyModal.anomaly_summary && (
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {t.anomalySummary}: total {historyModal.anomaly_summary.total_runs}, completed{" "}
                 {historyModal.anomaly_summary.completed_runs}, failed{" "}
                 {historyModal.anomaly_summary.failed_runs}, failure rate{" "}
@@ -470,7 +470,7 @@ export function SubscriptionsDemo({ locale }: { locale: Locale }) {
             )}
             <ul className="mt-4 space-y-2">
               {historyModal.runs.length === 0 ? (
-                <li className="text-sm text-muted">No runs yet.</li>
+                <li className="text-sm text-muted-foreground">No runs yet.</li>
               ) : (
                 historyModal.runs.map((run) => (
                   <li key={run.id} className="rounded border border-border bg-background p-2 text-sm">

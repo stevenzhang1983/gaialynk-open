@@ -288,8 +288,8 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
   if (!isAuthenticated) {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
-        <p className="text-muted">{authCopy.loginRequired}</p>
-        <p className="mt-2 text-sm text-muted">{authCopy.loginCta}</p>
+        <p className="text-muted-foreground">{authCopy.loginRequired}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{authCopy.loginCta}</p>
       </div>
     );
   }
@@ -338,7 +338,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
 
       <form onSubmit={createAuth} className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-lg font-semibold text-foreground">{t.create}</h3>
-        <p className="mt-1 text-xs text-muted">{t.userId}: {userId}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t.userId}: {userId}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="font-medium text-foreground">{t.connector}</span>
@@ -385,7 +385,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
         <button
           type="submit"
           disabled={createSubmitting}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           {createSubmitting ? "…" : t.create}
         </button>
@@ -413,9 +413,9 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
       </div>
 
       {loading && auths.length === 0 ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : auths.length === 0 ? (
-        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted">{t.empty}</p>
+        <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{t.empty}</p>
       ) : (
         <ul className="space-y-4">
           {auths.map((auth) => (
@@ -423,10 +423,10 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-medium text-foreground">{auth.connector}</p>
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {auth.scope_level} · {auth.scope_value} · {auth.status} · expires {auth.expires_at}
                   </p>
-                  <p className="text-xs text-muted">{auth.id}</p>
+                  <p className="text-xs text-muted-foreground">{auth.id}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {auth.status === "active" && (
@@ -468,7 +468,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
                 {t.close}
               </button>
             </div>
-            <pre className="mt-4 overflow-auto rounded border border-border bg-background p-3 text-xs text-muted">
+            <pre className="mt-4 overflow-auto rounded border border-border bg-background p-3 text-xs text-muted-foreground">
               {JSON.stringify(receiptModal, null, 2)}
             </pre>
           </div>
@@ -479,7 +479,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-foreground">{t.executeAction}</h3>
-            <p className="mt-1 text-xs text-muted">Auth: {executeModal.id}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Auth: {executeModal.id}</p>
             <label className="mt-4 block text-sm">
               <span className="font-medium text-foreground">Action</span>
               <input
@@ -514,7 +514,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
                 type="button"
                 onClick={executeLocalAction}
                 disabled={executeSubmitting || !executeAction.trim()}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {executeSubmitting ? "…" : t.executeAction}
               </button>

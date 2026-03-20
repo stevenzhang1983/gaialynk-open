@@ -142,35 +142,134 @@ export const createConversationAsync = async (
   return conversation;
 };
 
-export const listConversations = async (): Promise<Conversation[]> => {
+export type ListConversationsSort = "created_at:desc" | "created_at:asc";
+
+export interface ListConversationsOptions {
+  limit?: number;
+  cursor?: string;
+  sort?: ListConversationsSort;
+}
+
+export interface ListConversationsResult {
+  data: Conversation[];
+  next_cursor?: string;
+}
+
+export const listConversations = async (
+  opts?: ListConversationsOptions,
+): Promise<Conversation[] | ListConversationsResult> => {
   if (!isPostgresEnabled()) {
-    return [...conversations.values()];
+    const all = [...conversations.values()];
+    if (!opts?.limit && !opts?.cursor && !opts?.sort) {
+      return all;
+    }
+    return listConversationsInMemory(all, opts);
   }
 
-  const rows = await query<
-    Conversation & {
-      conversation_topology?: string;
-      authorization_mode?: string;
-      visibility_mode?: string;
-      risk_level?: string;
+  type Row = Conversation & {
+    conversation_topology?: string;
+    authorization_mode?: string;
+    visibility_mode?: string;
+    risk_level?: string;
+  };
+
+  const usePagination = opts?.limit != null || opts?.cursor != null;
+  const limit = usePagination ? Math.min(Math.max(opts?.limit ?? 50, 1), 100) : 0;
+  const sort = opts?.sort ?? "created_at:desc";
+  const orderDir = sort === "created_at:asc" ? "ASC" : "DESC";
+  const cursor = opts?.cursor?.trim();
+
+  let rows: Row[];
+  if (usePagination) {
+    const cmpOp = orderDir === "DESC" ? "<" : ">";
+    if (cursor) {
+      rows = await query<Row>(
+        `SELECT id, title, state, created_at::text, updated_at::text,
+                COALESCE(conversation_topology, 'T1') AS conversation_topology,
+                COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
+                COALESCE(visibility_mode, 'full') AS visibility_mode,
+                COALESCE(risk_level, 'low') AS risk_level
+         FROM conversations
+         WHERE (created_at, id::text) ${cmpOp} (
+           SELECT created_at, id::text FROM conversations WHERE id = $1
+         )
+         ORDER BY created_at ${orderDir}
+         LIMIT $2`,
+        [cursor, limit + 1],
+      );
+    } else {
+      rows = await query<Row>(
+        `SELECT id, title, state, created_at::text, updated_at::text,
+                COALESCE(conversation_topology, 'T1') AS conversation_topology,
+                COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
+                COALESCE(visibility_mode, 'full') AS visibility_mode,
+                COALESCE(risk_level, 'low') AS risk_level
+         FROM conversations
+         ORDER BY created_at ${orderDir}
+         LIMIT $1`,
+        [limit + 1],
+      );
     }
-  >(
-    `SELECT id, title, state, created_at::text, updated_at::text,
-            COALESCE(conversation_topology, 'T1') AS conversation_topology,
-            COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
-            COALESCE(visibility_mode, 'full') AS visibility_mode,
-            COALESCE(risk_level, 'low') AS risk_level
-     FROM conversations
-     ORDER BY created_at DESC`,
-  );
-  return rows.map((r) => ({
+  } else {
+    rows = await query<Row>(
+      `SELECT id, title, state, created_at::text, updated_at::text,
+              COALESCE(conversation_topology, 'T1') AS conversation_topology,
+              COALESCE(authorization_mode, 'user_explicit') AS authorization_mode,
+              COALESCE(visibility_mode, 'full') AS visibility_mode,
+              COALESCE(risk_level, 'low') AS risk_level
+       FROM conversations
+       ORDER BY created_at ${orderDir}`,
+      [],
+    );
+  }
+
+  const data = rows.map((r) => ({
     ...r,
     conversation_topology: (r.conversation_topology ?? "T1") as ConversationTopology,
     authorization_mode: (r.authorization_mode ?? "user_explicit") as AuthorizationMode,
     visibility_mode: (r.visibility_mode ?? "full") as VisibilityMode,
     risk_level: (r.risk_level ?? "low") as ConversationRiskLevel,
   }));
+
+  if (!usePagination) {
+    return data as Conversation[];
+  }
+  const hasMore = rows.length > limit;
+  const pageData = hasMore ? data.slice(0, limit) : data;
+  const result: ListConversationsResult = { data: pageData as Conversation[] };
+  if (hasMore && pageData.length > 0) {
+    result.next_cursor = pageData[pageData.length - 1]!.id;
+  }
+  return result;
 };
+
+function listConversationsInMemory(
+  all: Conversation[],
+  opts?: ListConversationsOptions,
+): ListConversationsResult {
+  const sort = opts?.sort ?? "created_at:desc";
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100);
+  let list = [...all];
+  if (sort === "created_at:asc") {
+    list.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  } else {
+    list.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  const cursor = opts?.cursor;
+  if (cursor) {
+    const idx = list.findIndex((c) => c.id === cursor);
+    if (idx >= 0) {
+      list = list.slice(idx + 1);
+    }
+  }
+  const hasMore = list.length > limit;
+  const data = hasMore ? list.slice(0, limit) : list;
+  const result: ListConversationsResult = { data };
+  if (hasMore && data.length > 0) {
+    result.next_cursor = data[data.length - 1]!.id;
+  }
+  return result;
+}
 
 export const getConversationDetail = (
   conversationId: string,
@@ -386,6 +485,115 @@ export const appendMessageAsync = async (input: AppendMessageInput): Promise<Mes
   await query(`UPDATE conversations SET updated_at = $2 WHERE id = $1`, [input.conversationId, nowIso()]);
 
   return message;
+};
+
+export const deleteConversation = (conversationId: string): boolean => {
+  if (!conversations.has(conversationId)) {
+    return false;
+  }
+  conversations.delete(conversationId);
+  participantsByConversation.delete(conversationId);
+  messagesByConversation.delete(conversationId);
+  return true;
+};
+
+export const deleteConversationAsync = async (conversationId: string): Promise<boolean> => {
+  if (!isPostgresEnabled()) {
+    return deleteConversation(conversationId);
+  }
+  const result = await query<{ id: string }>(
+    `DELETE FROM conversations WHERE id = $1 RETURNING id`,
+    [conversationId],
+  );
+  return result.length > 0;
+};
+
+export type ListMessagesSort = "created_at:desc" | "created_at:asc";
+
+export interface ListMessagesOptions {
+  limit?: number;
+  cursor?: string;
+  sort?: ListMessagesSort;
+}
+
+export interface ListMessagesResult {
+  data: Message[];
+  next_cursor?: string;
+}
+
+export const listMessagesAsync = async (
+  conversationId: string,
+  opts?: ListMessagesOptions,
+): Promise<ListMessagesResult | null> => {
+  if (!isPostgresEnabled()) {
+    const list = messagesByConversation.get(conversationId) ?? [];
+    if (!conversations.has(conversationId)) {
+      return null;
+    }
+    const sort = opts?.sort ?? "created_at:desc";
+    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
+    let ordered = [...list];
+    ordered.sort((a, b) =>
+      sort === "created_at:asc"
+        ? a.created_at.localeCompare(b.created_at)
+        : b.created_at.localeCompare(a.created_at),
+    );
+    if (opts?.cursor) {
+      const idx = ordered.findIndex((m) => m.id === opts!.cursor);
+      if (idx >= 0) ordered = ordered.slice(idx + 1);
+    }
+    const hasMore = ordered.length > limit;
+    const data = hasMore ? ordered.slice(0, limit) : ordered;
+    const result: ListMessagesResult = { data };
+    if (hasMore && data.length > 0) result.next_cursor = data[data.length - 1]!.id;
+    return result;
+  }
+
+  const convExists = await query(
+    `SELECT id FROM conversations WHERE id = $1`,
+    [conversationId],
+  );
+  if (convExists.length === 0) {
+    return null;
+  }
+
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
+  const sort = opts?.sort ?? "created_at:desc";
+  const orderDir = sort === "created_at:asc" ? "ASC" : "DESC";
+  const cursor = opts?.cursor?.trim();
+
+  type MsgRow = Message & { content: unknown };
+  const cmpOp = orderDir === "DESC" ? "<" : ">";
+  let rows: MsgRow[];
+  if (cursor) {
+    rows = await query<MsgRow>(
+      `SELECT id, conversation_id, sender_type, sender_id, content, created_at::text
+       FROM messages
+       WHERE conversation_id = $1 AND (created_at, id::text) ${cmpOp} (
+         SELECT created_at, id::text FROM messages WHERE id = $2 AND conversation_id = $1
+       )
+       ORDER BY created_at ${orderDir}
+       LIMIT $3`,
+      [conversationId, cursor, limit + 1],
+    );
+  } else {
+    rows = await query<MsgRow>(
+      `SELECT id, conversation_id, sender_type, sender_id, content, created_at::text
+       FROM messages
+       WHERE conversation_id = $1
+       ORDER BY created_at ${orderDir}
+       LIMIT $2`,
+      [conversationId, limit + 1],
+    );
+  }
+
+  const hasMore = rows.length > limit;
+  const data = (hasMore ? rows.slice(0, limit) : rows) as Message[];
+  const result: ListMessagesResult = { data };
+  if (hasMore && data.length > 0) {
+    result.next_cursor = data[data.length - 1]!.id;
+  }
+  return result;
 };
 
 export const resetConversationStore = (): void => {

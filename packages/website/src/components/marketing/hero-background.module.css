@@ -1,0 +1,124 @@
+/**
+ * T-3.1 Hero 背景动效（CSS-only，低端设备友好）
+ * 渐变网格 + 节点呼吸；尊重 prefers-reduced-motion。
+ */
+
+.wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.grid {
+  position: absolute;
+  inset: -50%;
+  background-image:
+    linear-gradient(rgb(var(--color-primary) / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-primary) / 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: heroGridPulse 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+@keyframes heroGridPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.glow {
+  position: absolute;
+  width: 80%;
+  max-width: 600px;
+  height: 60%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgb(var(--color-primary) / 0.12) 0%,
+    rgb(var(--color-primary) / 0.04) 40%,
+    transparent 70%
+  );
+  animation: heroGlowBreath 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
+@keyframes heroGlowBreath {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/* 节点连接线：细线点缀 */
+.lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(105deg, transparent 48%, rgb(var(--color-primary) / 0.08) 50%, transparent 52%),
+    linear-gradient(255deg, transparent 48%, rgb(var(--color-primary) / 0.06) 50%, transparent 52%);
+  background-size: 120% 120%;
+  background-position: 0% 0%;
+  animation: heroLinesMove 20s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lines {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* T-6.3 移动端：减弱持续背景动效，降低耗电与干扰 */
+@media (max-width: 767px) {
+  .grid {
+    animation: none;
+    opacity: 0.35;
+    transform: scale(1);
+  }
+
+  .glow {
+    animation: none;
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .lines {
+    animation: none;
+    opacity: 0.22;
+  }
+}
+
+@keyframes heroLinesMove {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}

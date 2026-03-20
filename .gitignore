@@ -8,6 +8,10 @@ packages/website/.next/
 packages/website/tsconfig.tsbuildinfo
 .data/
 .worktrees/
+artifacts/
+
+# Local agent skills bundle (not part of site build)
+packages/website/impeccable-style-universal/
 
 # Keep internal execution/commercial docs out of public sync
 docs/Agent-IM-CTO-Execution-Plan-v1.md
