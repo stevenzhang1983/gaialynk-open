@@ -14,6 +14,7 @@ export type ProductUiCopy = {
   statusAgentsOnline: string;
   statusDefaultSpace: string;
   statusBarAria: string;
+  statusDemo: string;
   /** 右侧面板无选中焦点时的提示 */
   contextPanelEmpty: string;
   /** 会话内无消息时的空状态 */
@@ -105,6 +106,7 @@ const PRODUCT_UI: Record<Locale, ProductUiCopy> = {
     statusAgentsOnline: "Agents online",
     statusDefaultSpace: "Default space",
     statusBarAria: "Status bar",
+    statusDemo: "Demo",
     contextPanelEmpty: "Select a conversation, agent, approval, or receipt to view details here.",
     chatEmptyHint: "No messages yet. Send one below.",
     chatInvalidConversation: "Invalid conversation",
@@ -128,6 +130,7 @@ const PRODUCT_UI: Record<Locale, ProductUiCopy> = {
     statusAgentsOnline: "線上 Agent",
     statusDefaultSpace: "預設空間",
     statusBarAria: "狀態列",
+    statusDemo: "展示模式",
     contextPanelEmpty: "請在左側選擇對話、Agent、審批項目或收據，以在此檢視詳情。",
     chatEmptyHint: "尚無訊息，請在下方傳送。",
     chatInvalidConversation: "無效的對話",
@@ -151,6 +154,7 @@ const PRODUCT_UI: Record<Locale, ProductUiCopy> = {
     statusAgentsOnline: "在线 Agent",
     statusDefaultSpace: "默认空间",
     statusBarAria: "状态栏",
+    statusDemo: "演示模式",
     contextPanelEmpty: "请在左侧选择对话、Agent、审批项或收据，以在此查看详情。",
     chatEmptyHint: "暂无消息，请在下方发送。",
     chatInvalidConversation: "无效的会话",

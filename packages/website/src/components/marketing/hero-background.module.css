@@ -1,6 +1,7 @@
 /**
  * T-3.1 Hero 背景动效（CSS-only，低端设备友好）
- * 渐变网格 + 节点呼吸；尊重 prefers-reduced-motion。
+ * 渐变网格 + 节点呼吸光晕 + 连接线漂移 + 浮动节点点阵
+ * 尊重 prefers-reduced-motion。
  */
 
 .wrapper {
@@ -10,115 +11,117 @@
   pointer-events: none;
 }
 
+/* ─── Grid ─── */
 .grid {
   position: absolute;
   inset: -50%;
   background-image:
-    linear-gradient(rgb(var(--color-primary) / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--color-primary) / 0.06) 1px, transparent 1px);
+    linear-gradient(rgb(var(--color-primary) / 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-primary) / 0.09) 1px, transparent 1px);
   background-size: 64px 64px;
   animation: heroGridPulse 8s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .grid {
-    animation: none;
-    opacity: 0.7;
-  }
-}
-
 @keyframes heroGridPulse {
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.02);
-  }
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
 }
 
+/* ─── Central glow ─── */
 .glow {
   position: absolute;
-  width: 80%;
-  max-width: 600px;
-  height: 60%;
+  width: 90%;
+  max-width: 720px;
+  height: 70%;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
   background: radial-gradient(
     ellipse at center,
-    rgb(var(--color-primary) / 0.12) 0%,
-    rgb(var(--color-primary) / 0.04) 40%,
+    rgb(var(--color-primary) / 0.18) 0%,
+    rgb(var(--color-primary) / 0.07) 40%,
     transparent 70%
   );
   animation: heroGlowBreath 6s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .glow {
-    animation: none;
-    opacity: 0.8;
-  }
-}
-
 @keyframes heroGlowBreath {
-  0%,
-  100% {
-    opacity: 0.8;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.08);
-  }
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 }
 
-/* 节点连接线：细线点缀 */
+/* ─── Connection lines ─── */
 .lines {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(105deg, transparent 48%, rgb(var(--color-primary) / 0.08) 50%, transparent 52%),
-    linear-gradient(255deg, transparent 48%, rgb(var(--color-primary) / 0.06) 50%, transparent 52%);
+    linear-gradient(115deg, transparent 44%, rgb(var(--color-primary) / 0.12) 50%, transparent 56%),
+    linear-gradient(245deg, transparent 44%, rgb(var(--color-primary) / 0.10) 50%, transparent 56%),
+    linear-gradient(170deg, transparent 46%, rgb(var(--color-primary) / 0.06) 50%, transparent 54%);
   background-size: 120% 120%;
   background-position: 0% 0%;
-  animation: heroLinesMove 20s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lines {
-    animation: none;
-    opacity: 0.5;
-  }
-}
-
-/* T-6.3 移动端：减弱持续背景动效，降低耗电与干扰 */
-@media (max-width: 767px) {
-  .grid {
-    animation: none;
-    opacity: 0.35;
-    transform: scale(1);
-  }
-
-  .glow {
-    animation: none;
-    opacity: 0.5;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  .lines {
-    animation: none;
-    opacity: 0.22;
-  }
+  animation: heroLinesMove 18s linear infinite;
 }
 
 @keyframes heroLinesMove {
-  0% {
-    background-position: 0% 0%;
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* ─── Floating nodes (small dots that suggest a network topology) ─── */
+.nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.node {
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(var(--color-primary) / 0.35);
+  box-shadow: 0 0 8px 2px rgb(var(--color-primary) / 0.15);
+  animation: nodeFloat 5s ease-in-out infinite;
+}
+
+.node:nth-child(1) { width: 6px; height: 6px; top: 18%; left: 22%; animation-delay: 0s; animation-duration: 5s; }
+.node:nth-child(2) { width: 4px; height: 4px; top: 32%; left: 72%; animation-delay: -1.2s; animation-duration: 6s; }
+.node:nth-child(3) { width: 5px; height: 5px; top: 58%; left: 15%; animation-delay: -2.5s; animation-duration: 7s; }
+.node:nth-child(4) { width: 3px; height: 3px; top: 72%; left: 65%; animation-delay: -0.8s; animation-duration: 5.5s; }
+.node:nth-child(5) { width: 5px; height: 5px; top: 25%; left: 48%; animation-delay: -3.2s; animation-duration: 6.5s; }
+.node:nth-child(6) { width: 4px; height: 4px; top: 65%; left: 38%; animation-delay: -1.8s; animation-duration: 5.8s; }
+.node:nth-child(7) { width: 3px; height: 3px; top: 45%; left: 82%; animation-delay: -4s; animation-duration: 7.2s; }
+.node:nth-child(8) { width: 5px; height: 5px; top: 80%; left: 28%; animation-delay: -2s; animation-duration: 6.2s; }
+
+@keyframes nodeFloat {
+  0%, 100% { opacity: 0.3; transform: translateY(0) scale(1); }
+  50% { opacity: 0.8; transform: translateY(-6px) scale(1.3); }
+}
+
+/* ─── Reduced-motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .grid  { animation: none; opacity: 0.6; }
+  .glow  { animation: none; opacity: 0.7; }
+  .lines { animation: none; opacity: 0.4; }
+  .node  { animation: none; opacity: 0.5; }
+}
+
+/* ─── Mobile: soften to save battery ─── */
+@media (max-width: 767px) {
+  .grid {
+    animation: none;
+    opacity: 0.3;
+    transform: scale(1);
   }
-  100% {
-    background-position: 100% 100%;
+  .glow {
+    animation: none;
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .lines {
+    animation: none;
+    opacity: 0.18;
+  }
+  .node {
+    animation: none;
+    opacity: 0.35;
   }
 }

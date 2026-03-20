@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { ProductMockupCopy } from "@/content/i18n/product-mockup-copy";
 
 /**
  * T-3.2 首页产品界面预览 Mockup
  * 三栏：对话列表 | 用户↔Agent 对话 + 风险确认卡片 | Agent 身份与信誉 + 收据
  * 浮窗式展示；hover 时可选轻微动效（消息滚动）。
  */
-export function ProductPreviewMockup() {
+export function ProductPreviewMockup({ copy }: { copy: ProductMockupCopy }) {
   const [hovered, setHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,17 +32,17 @@ export function ProductPreviewMockup() {
         {/* 顶部标题栏 */}
         <div className="flex items-center justify-between border-b border-border bg-surface-raised px-4 py-2.5">
           <span className="text-xs font-semibold text-foreground">GaiaLynk Agent IM</span>
-          <span className="text-caption text-muted-foreground">Preview</span>
+          <span className="text-caption text-muted-foreground">{copy.topBarBadge}</span>
         </div>
 
         <div className="flex min-h-[320px] md:min-h-[380px]">
           {/* 左侧：对话列表 */}
           <aside className="hidden w-[28%] min-w-[120px] shrink-0 flex-col border-r border-border bg-surface md:flex">
             <div className="border-b border-border px-3 py-2">
-              <span className="text-caption font-medium text-muted-foreground">Conversations</span>
+              <span className="text-caption font-medium text-muted-foreground">{copy.conversationsLabel}</span>
             </div>
             <div className="flex-1 space-y-0.5 p-2">
-              {["Summary request", "API docs lookup", "Code review"].map((title, i) => (
+              {copy.convTitles.map((title, i) => (
                 <div
                   key={title}
                   className={`rounded-md px-3 py-2.5 text-caption ${
@@ -60,7 +61,7 @@ export function ProductPreviewMockup() {
               {/* 用户消息 */}
               <div className="flex justify-end">
                 <div className="max-w-[85%] rounded-lg rounded-tr-none bg-primary/20 px-3 py-2 text-caption text-foreground">
-                  Summarize the latest API changes and risks.
+                  {copy.userMessage}
                 </div>
               </div>
               {/* Agent 回复 */}
@@ -69,7 +70,7 @@ export function ProductPreviewMockup() {
                   A
                 </div>
                 <div className="max-w-[85%] rounded-lg rounded-tl-none border border-border bg-card px-3 py-2 text-caption text-foreground">
-                  I found 3 breaking changes. One action requires your approval before I proceed.
+                  {copy.agentReply}
                 </div>
               </div>
               {/* 风险确认卡片 */}
@@ -79,17 +80,17 @@ export function ProductPreviewMockup() {
                 }`}
               >
                 <p className="text-caption font-semibold text-warning-foreground">
-                  Risk confirmation required
+                  {copy.riskTitle}
                 </p>
                 <p className="mt-1 text-caption text-muted-foreground">
-                  Execute external API call? Approve or reject below.
+                  {copy.riskDesc}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <span className="rounded bg-success/20 px-2 py-1 text-caption text-success">
-                    Approve
+                    {copy.approve}
                   </span>
                   <span className="rounded bg-destructive/20 px-2 py-1 text-caption text-destructive">
-                    Reject
+                    {copy.reject}
                   </span>
                 </div>
               </div>
@@ -103,7 +104,7 @@ export function ProductPreviewMockup() {
                   A
                 </div>
                 <div className="max-w-[85%] rounded-lg rounded-tl-none border border-border bg-card px-3 py-2 text-caption text-foreground">
-                  Summary ready. Receipt attached.
+                  {copy.agentReply2}
                 </div>
               </div>
             </div>
@@ -112,18 +113,18 @@ export function ProductPreviewMockup() {
           {/* 右侧：Agent 身份与信誉 + 收据 */}
           <aside className="hidden w-[30%] min-w-[140px] shrink-0 flex-col border-l border-border bg-surface-overlay lg:flex">
             <div className="border-b border-border px-3 py-2">
-              <span className="text-caption font-medium text-muted-foreground">Agent & Receipt</span>
+              <span className="text-caption font-medium text-muted-foreground">{copy.agentReceiptLabel}</span>
             </div>
             <div className="flex-1 space-y-3 p-3">
               <div className="rounded-lg border border-border bg-surface p-2.5">
-                <p className="text-caption font-semibold text-foreground">Agent Alpha</p>
-                <p className="mt-1 text-caption text-success">Verified</p>
-                <p className="mt-0.5 text-caption text-muted-foreground">Reputation: 4.8</p>
+                <p className="text-caption font-semibold text-foreground">{copy.agentName}</p>
+                <p className="mt-1 text-caption text-success">{copy.verified}</p>
+                <p className="mt-0.5 text-caption text-muted-foreground">{copy.reputation}</p>
               </div>
               <div className="rounded-lg border border-border bg-surface p-2.5">
-                <p className="text-caption font-semibold text-foreground">Call receipt</p>
-                <p className="mt-1 text-caption text-muted-foreground">Signed · Verifiable</p>
-                <p className="mt-0.5 text-caption text-primary">View details →</p>
+                <p className="text-caption font-semibold text-foreground">{copy.receiptTitle}</p>
+                <p className="mt-1 text-caption text-muted-foreground">{copy.receiptDesc}</p>
+                <p className="mt-0.5 text-caption text-primary">{copy.viewDetails}</p>
               </div>
             </div>
           </aside>

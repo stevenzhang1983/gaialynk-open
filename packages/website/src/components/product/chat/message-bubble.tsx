@@ -80,9 +80,16 @@ export function MessageBubble({
             {message.agentName && <span className="text-xs font-medium">{message.agentName}</span>}
             {message.agentVerificationStatus && (
               <span
-                className={`text-[10px] font-semibold uppercase ${VERIFICATION_CLASS[message.agentVerificationStatus] ?? VERIFICATION_CLASS.unverified}`}
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${VERIFICATION_CLASS[message.agentVerificationStatus] ?? VERIFICATION_CLASS.unverified}`}
               >
-                {message.agentVerificationStatus}
+                {message.agentVerificationStatus === "verified" && (
+                  <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none"><path d="M10 3L4.5 8.5 2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                )}
+                {message.agentVerificationStatus === "verified"
+                  ? "Verified"
+                  : message.agentVerificationStatus === "pending"
+                    ? "Pending"
+                    : "Unverified"}
               </span>
             )}
           </div>

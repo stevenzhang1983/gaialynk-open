@@ -196,6 +196,8 @@ export function ProductShell({
         agentsOnlineLabel={productUi.statusAgentsOnline}
         defaultSpaceLabel={productUi.statusDefaultSpace}
         ariaLabel={productUi.statusBarAria}
+        isDemo
+        demoLabel={productUi.statusDemo}
       />
     </div>
   );

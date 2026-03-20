@@ -14,11 +14,16 @@ import { buildAnalyticsPayload } from "@/lib/analytics/events";
 import { trackEvent } from "@/lib/analytics/track";
 import { isSupportedLocale, type Locale } from "@/lib/i18n/locales";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function toChatMessage(m: ApiMessage): ChatMessage {
+  const isAgent = m.sender_type === "agent";
   return {
     ...m,
-    agentName: m.sender_type === "agent" ? m.sender_id : undefined,
-    agentVerificationStatus: m.sender_type === "agent" ? "verified" : undefined,
+    agentName: isAgent
+      ? UUID_RE.test(m.sender_id) ? "Agent" : m.sender_id
+      : undefined,
+    agentVerificationStatus: isAgent ? "verified" : undefined,
   };
 }
 

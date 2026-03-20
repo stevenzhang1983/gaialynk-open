@@ -35,17 +35,19 @@ export function CookieBanner() {
   }
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-50 rounded-lg border border-border bg-card p-4 shadow-xl md:inset-x-auto md:right-6 md:w-[420px]">
-      <p className="text-sm text-muted-foreground">{message}</p>
-      <button
-        className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-        onClick={() => {
-          window.localStorage.setItem(STORAGE_KEY, "accepted");
-          setVisible(false);
-        }}
-      >
-        {accept}
-      </button>
+    <div className="fixed inset-x-4 bottom-20 z-50 rounded-lg border border-border bg-card/95 p-4 shadow-xl backdrop-blur-sm md:inset-x-auto md:bottom-6 md:right-6 md:w-[420px]">
+      <div className="flex items-start gap-3">
+        <p className="flex-1 text-sm text-muted-foreground">{message}</p>
+        <button
+          className="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          onClick={() => {
+            window.localStorage.setItem(STORAGE_KEY, "accepted");
+            setVisible(false);
+          }}
+        >
+          {accept}
+        </button>
+      </div>
     </div>
   );
 }

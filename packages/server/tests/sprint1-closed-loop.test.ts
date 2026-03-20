@@ -59,6 +59,6 @@ describe("Sprint1 minimal closed loop", () => {
     expect(detailBody.data.messages).toHaveLength(2);
     expect(detailBody.data.messages[0].sender_type).toBe("user");
     expect(detailBody.data.messages[1].sender_type).toBe("agent");
-    expect(detailBody.data.messages[1].content.text).toContain("mocked A2A response");
+    expect(detailBody.data.messages[1].content.text).toContain("[Summarizer Agent]");
   });
 });

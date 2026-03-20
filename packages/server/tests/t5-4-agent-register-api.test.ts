@@ -179,7 +179,7 @@ describe("T-5.4 Agent Register API", () => {
     expect(testRes.status).toBe(200);
     const testBody = await testRes.json();
     expect(testBody.data.output_text).toBeDefined();
-    expect(testBody.data.output_text).toContain("mocked A2A response");
+    expect(testBody.data.output_text).toContain("[Test Call Agent]");
   });
 
   it("POST /api/v1/agents/:id/submit-review sets status to active", async () => {

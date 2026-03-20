@@ -74,7 +74,7 @@ export const checkAgentHealth = async (sourceUrl: string): Promise<{ ok: boolean
 
 export const requestAgent = async (input: RequestAgentInput): Promise<A2AResponse> => {
   if (input.agent.source_url.startsWith("mock://")) {
-    const responseText = `mocked A2A response from ${input.agent.name} for conversation ${input.conversationId}: ${input.userText}`;
+    const responseText = `[${input.agent.name}] ${input.userText}`;
     return { text: responseText };
   }
 
