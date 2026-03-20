@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import sitemap from "../src/app/sitemap";
+import { SITE_ORIGIN_FALLBACK } from "../src/lib/site-origin";
 
 function siteBase(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://gaialynk.com").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? SITE_ORIGIN_FALLBACK).replace(/\/$/, "");
 }
 
 describe("sitemap entry routes", () => {
