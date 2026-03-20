@@ -36,6 +36,7 @@ import {
   getAgentStatsAsync,
 } from "./modules/directory/agent-directory.service";
 import {
+  agentsListAsArray,
   getAgentByIdAsync,
   listAgentsAsync,
   registerAgentAsync,
@@ -1215,9 +1216,9 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const intentLower = intent.toLowerCase();
     const maxRank = riskMax ? riskRank(riskMax) : Number.POSITIVE_INFINITY;
 
-    const agents = await listAgentsAsync();
+    const agents = agentsListAsArray(await listAgentsAsync());
     const scored = agents
-      .map((agent) => {
+      .map((agent: Agent) => {
         if (agent.capabilities.length === 0) {
           return null;
         }
@@ -1474,10 +1475,10 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     }
     const windowDays = parsed.data.window_days ?? 7;
     const from = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
-    const agents = await listAgentsAsync();
+    const agents = agentsListAsArray(await listAgentsAsync());
     const templateAgentIds = agents
-      .filter((agent) => agent.source_url === template.source_url)
-      .map((agent) => agent.id);
+      .filter((agent: Agent) => agent.source_url === template.source_url)
+      .map((agent: Agent) => agent.id);
     if (templateAgentIds.length === 0) {
       return c.json(
         {
@@ -1612,10 +1613,10 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         continue;
       }
       const from = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
-      const agents = await listAgentsAsync();
+      const agents = agentsListAsArray(await listAgentsAsync());
       const templateAgentIds = agents
-        .filter((agent) => agent.source_url === template.source_url)
-        .map((agent) => agent.id);
+        .filter((agent: Agent) => agent.source_url === template.source_url)
+        .map((agent: Agent) => agent.id);
       const events = (await listAuditEventsAsync({ from, limit: 5000 })).data.filter(
         (event) => event.agent_id && templateAgentIds.includes(event.agent_id),
       );
@@ -1664,10 +1665,10 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       await Promise.all(templateIds.map((templateId) => getPublicAgentTemplateByIdAsync(templateId)))
     ).filter((template): template is NonNullable<typeof template> => Boolean(template));
     const sourceUrls = new Set(templates.map((template) => template.source_url));
-    const agents = await listAgentsAsync();
+    const agents = agentsListAsArray(await listAgentsAsync());
     const templateAgentIds = agents
-      .filter((agent) => sourceUrls.has(agent.source_url))
-      .map((agent) => agent.id);
+      .filter((agent: Agent) => sourceUrls.has(agent.source_url))
+      .map((agent: Agent) => agent.id);
     const from = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
     const events = (await listAuditEventsAsync({ from, limit: 5000 })).data;
     const dailyMap = new Map<string, { date: string; invocation_total: number; governance_events: number }>();
@@ -2379,7 +2380,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.post("/api/v1/ask", async (c) => {
     const payload = askRequestSchema.parse(await c.req.json());
-    const agents = await listAgentsAsync();
+    const agents = agentsListAsArray(await listAgentsAsync());
     if (agents.length === 0) {
       return c.json(
         {
@@ -2474,7 +2475,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       payload: { ask_id: askId, action: "retry" },
       correlationId: randomUUID(),
     });
-    const run = await runAskFallbackAsync(askId, "retry", await listAgentsAsync());
+    const run = await runAskFallbackAsync(askId, "retry", agentsListAsArray(await listAgentsAsync()));
     if (!run) {
       return c.json({ error: { code: "ask_not_found", message: "Ask session not found" } }, 404);
     }
@@ -2497,7 +2498,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       payload: { ask_id: askId, action: "alternative" },
       correlationId: randomUUID(),
     });
-    const run = await runAskFallbackAsync(askId, "alternative", await listAgentsAsync());
+    const run = await runAskFallbackAsync(askId, "alternative", agentsListAsArray(await listAgentsAsync()));
     if (!run) {
       return c.json({ error: { code: "ask_not_found", message: "Ask session not found" } }, 404);
     }
@@ -2520,7 +2521,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       payload: { ask_id: askId, action: "degraded" },
       correlationId: randomUUID(),
     });
-    const run = await runAskFallbackAsync(askId, "degraded", await listAgentsAsync());
+    const run = await runAskFallbackAsync(askId, "degraded", agentsListAsArray(await listAgentsAsync()));
     if (!run) {
       return c.json({ error: { code: "ask_not_found", message: "Ask session not found" } }, 404);
     }
@@ -2558,7 +2559,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.post("/api/v1/ask/:id/rerun", async (c) => {
     const askId = c.req.param("id");
-    const agents = await listAgentsAsync();
+    const agents = agentsListAsArray(await listAgentsAsync());
     const run = await rerunAskAsync(askId, agents);
     if (!run) {
       return c.json(
@@ -5531,7 +5532,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     );
   });
 
-  registerAuthRoutes(app);
+  registerAuthRoutes(app as unknown as import("hono").Hono);
 
   return app;
 };

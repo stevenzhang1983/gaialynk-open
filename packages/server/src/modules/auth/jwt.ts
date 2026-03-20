@@ -51,7 +51,9 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
     const secret = getSecret();
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const [headerB64, payloadB64, sigB64] = parts;
+    const headerB64 = parts[0]!;
+    const payloadB64 = parts[1]!;
+    const sigB64 = parts[2]!;
     const expectedSig = createHmac("sha256", secret).update(`${headerB64}.${payloadB64}`).digest("base64url");
     if (expectedSig !== sigB64) return null;
     const payload = JSON.parse(base64UrlDecode(payloadB64)) as AccessTokenPayload;

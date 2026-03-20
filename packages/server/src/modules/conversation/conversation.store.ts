@@ -155,6 +155,13 @@ export interface ListConversationsResult {
   next_cursor?: string;
 }
 
+/** Normalize listConversations result to Conversation[] (plain list or paginated envelope). */
+export function conversationsListAsArray(
+  result: Conversation[] | ListConversationsResult,
+): Conversation[] {
+  return Array.isArray(result) ? result : result.data;
+}
+
 export const listConversations = async (
   opts?: ListConversationsOptions,
 ): Promise<Conversation[] | ListConversationsResult> => {
