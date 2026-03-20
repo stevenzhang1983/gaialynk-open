@@ -49,11 +49,6 @@ function LoginPageContent() {
     [email, password, signInWithPassword, router, returnUrl, L.invalidCredentials, L.genericError],
   );
 
-  const oauthCallbackUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/${locale}/app/auth/callback#return_url=${encodeURIComponent(returnUrl)}`
-      : "";
-
   if (isAuthenticated) {
     router.replace(returnUrl);
     return (
@@ -69,7 +64,7 @@ function LoginPageContent() {
         {/* OAuth */}
         <div className="flex flex-col gap-2">
           <a
-            href={`/api/auth/oauth/github?return_url=${encodeURIComponent(returnUrl)}`}
+            href={`/api/auth/oauth/github?return_url=${encodeURIComponent(returnUrl)}&locale=${locale}`}
             className="flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-surface-raised"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -78,7 +73,7 @@ function LoginPageContent() {
             {L.signInGitHub}
           </a>
           <a
-            href={`/api/auth/oauth/google?return_url=${encodeURIComponent(returnUrl)}`}
+            href={`/api/auth/oauth/google?return_url=${encodeURIComponent(returnUrl)}&locale=${locale}`}
             className="flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-surface-raised"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>

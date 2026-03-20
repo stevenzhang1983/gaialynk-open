@@ -27,6 +27,7 @@ function buildSidebarItems(
     { key: "recovery-hitl", href: `/${locale}/app/recovery-hitl`, label: nav.approvals ?? "Approvals" },
     { key: "history", href: `/${locale}/app/history`, label: nav.history ?? "History" },
     { key: "connectors-governance", href: `/${locale}/app/connectors-governance`, label: nav.connector ?? "Connector" },
+    { key: "my-agents", href: `/${locale}/app/my-agents`, label: nav.myAgents ?? "My Agents" },
     { key: "settings", href: `/${locale}/app/settings`, label: nav.settings ?? "Settings" },
   ];
 }
