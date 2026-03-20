@@ -183,13 +183,17 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
 
   app.get("/api/v1/auth/oauth/:provider", async (c) => {
     const provider = c.req.param("provider").toLowerCase();
+    const callbackUrl = c.req.query("callback_url")?.trim() || "";
+    const returnUrl = c.req.query("return_url")?.trim() || "/";
+    const statePayload = JSON.stringify({ nonce: crypto.randomUUID(), callback_url: callbackUrl, return_url: returnUrl });
+    const state = Buffer.from(statePayload).toString("base64url");
+
     if (provider === "github") {
       const clientId = process.env.GITHUB_CLIENT_ID?.trim();
       const redirectBase = process.env.OAUTH_REDIRECT_BASE?.trim() || "http://localhost:3000";
       if (!clientId) {
         return c.json({ error: { code: "oauth_not_configured", message: "GitHub OAuth not configured" } }, 503);
       }
-      const state = crypto.randomUUID();
       const redirectUri = `${redirectBase}/api/v1/auth/oauth/github/callback`;
       const url = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${encodeURIComponent(state)}`;
       return c.redirect(url);
@@ -200,7 +204,6 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
       if (!clientId) {
         return c.json({ error: { code: "oauth_not_configured", message: "Google OAuth not configured" } }, 503);
       }
-      const state = crypto.randomUUID();
       const redirectUri = `${redirectBase}/api/v1/auth/oauth/google/callback`;
       const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20email%20profile&state=${encodeURIComponent(state)}`;
       return c.redirect(url);
@@ -214,7 +217,55 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
     if (!code) {
       return c.json({ error: { code: "missing_code", message: "OAuth callback missing code" } }, 400);
     }
+
+    let callbackUrl = "";
+    let returnUrl = "/";
+    try {
+      const rawState = c.req.query("state") ?? "";
+      const decoded = JSON.parse(Buffer.from(rawState, "base64url").toString("utf8")) as {
+        callback_url?: string;
+        return_url?: string;
+      };
+      callbackUrl = decoded.callback_url ?? "";
+      returnUrl = decoded.return_url ?? "/";
+    } catch {
+      /* state decode failed — fall through, will return JSON if no callback_url */
+    }
+
     const redirectBase = process.env.OAUTH_REDIRECT_BASE?.trim() || "http://localhost:3000";
+
+    const buildRedirectOrJson = (accessToken: string, refreshToken: string) => {
+      if (callbackUrl) {
+        const fragment = `access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&return_url=${encodeURIComponent(returnUrl)}`;
+        return c.redirect(`${callbackUrl}#${fragment}`, 302);
+      }
+      return c.json({
+        data: {
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          expires_in: getAccessTokenTtlSeconds(),
+        },
+      });
+    };
+
+    const issueTokens = async (email: string) => {
+      let userWithPassword = await getUserByEmailAsync(email);
+      if (!userWithPassword) {
+        const newUser = await createUserAsync({
+          email,
+          password: crypto.randomUUID() + crypto.randomUUID(),
+          role: "consumer",
+        });
+        userWithPassword = await getUserByEmailAsync(email);
+        if (!userWithPassword) return c.json({ error: { code: "user_creation_failed", message: "Failed to create user" } }, 500);
+      }
+      const user = await getUserByIdAsync(userWithPassword.id);
+      if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);
+      const at = signAccessToken({ sub: user.id, email: user.email, role: user.role });
+      const { token: rt } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
+      return buildRedirectOrJson(at, rt);
+    };
+
     if (provider === "github") {
       const clientId = process.env.GITHUB_CLIENT_ID?.trim();
       const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
@@ -236,39 +287,9 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
       });
       const ghUser = (await userRes.json()) as { id: number; email?: string; login?: string };
       const email = ghUser.email ?? `${ghUser.id}@github.local`;
-      let userWithPassword = await getUserByEmailAsync(email);
-      if (!userWithPassword) {
-        const newUser = await createUserAsync({
-          email,
-          password: crypto.randomUUID() + crypto.randomUUID(),
-          role: "consumer",
-        });
-        const user = await getUserByIdAsync(newUser.id);
-        if (!user) return c.json({ error: { code: "user_creation_failed", message: "Failed to create user" } }, 500);
-        const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-        const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
-        return c.json({
-          data: {
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_in: getAccessTokenTtlSeconds(),
-            user: { id: user.id, email: user.email, role: user.role },
-          },
-        });
-      }
-      const user = await getUserByIdAsync(userWithPassword.id);
-      if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);
-      const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-      const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
-      return c.json({
-        data: {
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_in: getAccessTokenTtlSeconds(),
-          user: { id: user.id, email: user.email, role: user.role },
-        },
-      });
+      return issueTokens(email);
     }
+
     if (provider === "google") {
       const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
@@ -296,39 +317,9 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
       });
       const googUser = (await userRes.json()) as { id: string; email?: string };
       const email = googUser.email ?? `${googUser.id}@google.local`;
-      let userWithPassword = await getUserByEmailAsync(email);
-      if (!userWithPassword) {
-        const newUser = await createUserAsync({
-          email,
-          password: crypto.randomUUID() + crypto.randomUUID(),
-          role: "consumer",
-        });
-        const user = await getUserByIdAsync(newUser.id);
-        if (!user) return c.json({ error: { code: "user_creation_failed", message: "Failed to create user" } }, 500);
-        const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-        const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
-        return c.json({
-          data: {
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_in: getAccessTokenTtlSeconds(),
-            user: { id: user.id, email: user.email, role: user.role },
-          },
-        });
-      }
-      const user = await getUserByIdAsync(userWithPassword.id);
-      if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);
-      const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-      const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
-      return c.json({
-        data: {
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_in: getAccessTokenTtlSeconds(),
-          user: { id: user.id, email: user.email, role: user.role },
-        },
-      });
+      return issueTokens(email);
     }
+
     return c.json({ error: { code: "unsupported_provider", message: "Unsupported OAuth provider" } }, 400);
   });
 }

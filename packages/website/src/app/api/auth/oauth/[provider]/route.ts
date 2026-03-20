@@ -3,9 +3,18 @@ import { getMainlineApiUrl } from "@/lib/config/mainline";
 
 const ALLOWED_PROVIDERS = ["github", "google"] as const;
 
+function getSiteUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3001"
+  );
+}
+
 /**
  * T-4.6 OAuth 发起：重定向到 mainline 的 /api/v1/auth/oauth/:provider。
- * 前端可传 return_url（登录后希望回到的 path，如 /en/app/chat），mainline 回调时需将用户带回网站并带上 tokens（见 auth/callback 页）。
+ * 附带 callback_url（网站的 auth/callback 页）和 return_url，mainline 完成后 302 回来。
  */
 export async function GET(
   request: NextRequest,
@@ -21,8 +30,15 @@ export async function GET(
   }
   const { searchParams } = new URL(request.url);
   const returnUrl = searchParams.get("return_url")?.trim() || "/";
+
+  const locale = searchParams.get("locale")?.trim() || "en";
+  const siteUrl = getSiteUrl();
+  const callbackUrl = `${siteUrl}/${locale}/app/auth/callback`;
+
   const base = getMainlineApiUrl();
-  const mainlineOAuthUrl = `${base}/api/v1/auth/oauth/${normalized}`;
-  const res = NextResponse.redirect(mainlineOAuthUrl, 302);
-  return res;
+  const target = new URL(`${base}/api/v1/auth/oauth/${normalized}`);
+  target.searchParams.set("callback_url", callbackUrl);
+  target.searchParams.set("return_url", returnUrl);
+
+  return NextResponse.redirect(target.toString(), 302);
 }

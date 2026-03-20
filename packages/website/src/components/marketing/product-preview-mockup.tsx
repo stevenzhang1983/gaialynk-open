@@ -18,11 +18,9 @@ export function ProductPreviewMockup({ copy }: { copy: ProductMockupCopy }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="relative mx-auto w-full min-w-0 max-w-5xl"
-      style={{ perspective: "1200px" }}
     >
-      {/* 浮窗容器：桌面轻微倾斜、阴影、光效；移动端无倾斜便于阅读 */}
       <div
-        className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-elevated transition-all duration-500 ease-out md:[transform:rotateX(4deg)_rotateY(-6deg)]"
+        className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-elevated transition-all duration-500 ease-out"
         style={{
           boxShadow: hovered
             ? "var(--shadow-brand-md), 0 32px 80px -24px rgb(0 0 0 / 0.5)"

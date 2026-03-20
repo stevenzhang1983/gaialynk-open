@@ -22,6 +22,7 @@ export type Dictionary = {
     approvals?: string;
     history?: string;
     connector?: string;
+    myAgents?: string;
     settings?: string;
     /** 官网区导航（T-2.2） */
     roadmap?: string;

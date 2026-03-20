@@ -192,7 +192,7 @@ export function FeatureShowcaseSection({ data }: FeatureShowcaseSectionProps) {
               >
                 <div
                   className={`w-full max-w-[280px] transition-[box-shadow,transform] duration-300 hover:shadow-card-hover md:max-w-[320px] ${
-                    isEven ? "md:rotate-[-1deg]" : "md:rotate-[1deg]"
+                    ""
                   }`}
                 >
                   <Mockup />
