@@ -247,6 +247,11 @@ export interface ListAgentsResult {
   next_cursor?: string;
 }
 
+/** Normalize listAgentsAsync result to Agent[] (plain list or paginated envelope). */
+export function agentsListAsArray(result: Agent[] | ListAgentsResult): Agent[] {
+  return Array.isArray(result) ? result : result.data;
+}
+
 export const listAgentsAsync = async (
   opts?: ListAgentsOptions,
 ): Promise<Agent[] | ListAgentsResult> => {

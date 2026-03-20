@@ -2,6 +2,7 @@ import { listAuditEventsAsync } from "../audit/audit.store";
 import type { AuditEvent } from "../audit/audit.store";
 import { countReceiptsAsync } from "../audit/receipt.store";
 import {
+  conversationsListAsArray,
   getConversationDetailAsync,
   listConversations,
 } from "../conversation/conversation.store";
@@ -73,11 +74,11 @@ export const getPhase0Metrics = async (): Promise<Phase0Metrics> => {
     }
   }
 
-  const conversationsActiveTotal = (await listConversations()).filter(
+  const conversationsActiveTotal = conversationsListAsArray(await listConversations()).filter(
     (conversation) => conversation.state === "active",
   ).length;
 
-  const conversations = await listConversations();
+  const conversations = conversationsListAsArray(await listConversations());
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const weeklyActiveConversations = conversations.filter(
     (conversation) => Date.parse(conversation.updated_at) >= sevenDaysAgo,
