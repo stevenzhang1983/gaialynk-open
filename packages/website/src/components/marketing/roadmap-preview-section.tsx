@@ -104,20 +104,21 @@ export function RoadmapPreviewSection({ data, locale }: RoadmapPreviewSectionPro
         ))}
       </motion.div>
 
-      <div className="hidden overflow-x-auto pb-2 md:block">
+      <div className="hidden pb-2 md:block">
         <motion.div
-          className="flex min-w-max items-start gap-0"
+          className="grid items-stretch gap-0"
+          style={{ gridTemplateColumns: phases.map((_, i) => i < phases.length - 1 ? "1fr 24px" : "1fr").join(" ") }}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.1, margin: "0px 0px -32px 0px" }}
           variants={timelineContainerVariants}
         >
           {phases.map((phase, index) => (
-            <motion.div key={phase.id} variants={phaseChipVariants} className="flex items-start">
+            <motion.div key={phase.id} variants={phaseChipVariants} className="contents">
               <button
                 type="button"
                 onClick={() => setExpandedId((prev) => (prev === phase.id ? null : phase.id))}
-                className={`flex w-[min(200px,22vw)] flex-col rounded-xl border px-4 py-3 text-left transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                className={`flex flex-col rounded-xl border px-4 py-3 text-left transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                   expandedId === phase.id
                     ? "border-primary/40 bg-card shadow-card-hover"
                     : "border-border bg-card shadow-card"
@@ -126,13 +127,13 @@ export function RoadmapPreviewSection({ data, locale }: RoadmapPreviewSectionPro
                 aria-controls={`roadmap-phase-${phase.id}`}
               >
                 <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Phase {index}</span>
-                <span className="mt-1 line-clamp-2 text-sm font-semibold text-foreground">{phase.name}</span>
-                <div className="mt-2">
+                <span className="mt-1 text-sm font-semibold text-foreground">{phase.name}</span>
+                <div className="mt-auto pt-2">
                   <StatusBadge status={phase.status} locale={locale} />
                 </div>
               </button>
               {index < phases.length - 1 && (
-                <div className="flex h-10 w-4 shrink-0 items-center md:w-6" aria-hidden>
+                <div className="flex items-center" aria-hidden>
                   <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                 </div>
               )}
