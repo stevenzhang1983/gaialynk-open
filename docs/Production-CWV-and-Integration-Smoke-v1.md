@@ -1,13 +1,22 @@
 # 生产 CWV 与联调验收（v1）
 
 > 配合 `CTO-Execution-Directive-v1` §9.1（Core Web Vitals）与产品区真实 Mainline 联调。  
-> 在**已绑定域名或 Vercel Preview 的线上构建**上执行；本地 `next dev` 不作为 CWV 最终依据。
+> 在**已绑定域名或 Vercel 生产/Preview 构建**上执行；本地 `next dev` 不作为 CWV 最终依据。
+
+## 当前线上入口（未绑自定义域）
+
+截至文档维护时，官网部署在 Vercel 默认域（**尚未关联 `gaialynk.com` 等自定义域**）：
+
+- **根站点**：<https://gaialynk-a2a.vercel.app>
+- **简中首页示例**：<https://gaialynk-a2a.vercel.app/zh-Hans>
+
+Lighthouse、CrUX、联调烟测与 `NEXT_PUBLIC_SITE_URL` 均应以**当前浏览器地址栏中的生产 URL**为准；绑定正式域并 Redeploy 后，将 `SITE` 与环改变量同步改为新域即可。
 
 ## 1. 前置
 
 | 项 | 说明 |
 |----|------|
-| 官网 URL | 例如 `https://gaialynk.com` 或 `https://<project>.vercel.app` |
+| 官网 URL | **当前**：`https://gaialynk-a2a.vercel.app`；绑域后：`https://gaialynk.com`（或 `www`） |
 | Mainline | `MAINLINE_API_URL` 与 Vercel/Railway 环境一致；官网「治理测试」需 Mainline 可达时可不设 `RELEASE_GATE_SKIP_API_HEALTH` |
 
 ## 2. Core Web Vitals / Lighthouse（桌面 + 移动）
@@ -18,8 +27,8 @@
 # 安装（一次性）
 npm i -g lighthouse
 
-# 三语首页 + 关键落地页（将 SITE 换成真实线上地址）
-export SITE="https://gaialynk.com"
+# 三语首页 + 关键落地页（绑域后把 SITE 换成正式域）
+export SITE="https://gaialynk-a2a.vercel.app"
 for path in "/" "/en" "/zh-Hant" "/zh-Hans" "/en/roadmap" "/en/app"; do
   lighthouse "${SITE}${path}" \
     --only-categories=performance \
