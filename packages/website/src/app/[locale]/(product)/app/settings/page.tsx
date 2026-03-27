@@ -1,27 +1,15 @@
-import type { Locale } from "@/lib/i18n/locales";
-import { getDictionary } from "@/content/dictionaries";
-import { SettingsPanel } from "@/components/settings-panel";
-import { PanelLayout } from "@/components/product/panels/panel-layout";
+import { redirect } from "next/navigation";
+import { isSupportedLocale, type Locale } from "@/lib/i18n/locales";
 
 /**
- * T-4.5 设置：侧边栏「⚙️ 设置」入口，主区域为设置面板。
+ * W-10：设置套件默认进入「账户」子页。
  */
-export default async function SettingsPage({
+export default async function SettingsIndexPage({
   params,
 }: {
-  params: Promise<{ locale: Locale }>;
+  params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params;
-  const dict = getDictionary(locale);
-  const title = dict.nav.settings ?? "Settings";
-
-  return (
-    <PanelLayout
-      locale={locale}
-      title={title}
-      description="Manage your session identity and notification preferences."
-    >
-      <SettingsPanel />
-    </PanelLayout>
-  );
+  const { locale: raw } = await params;
+  const locale: Locale = isSupportedLocale(raw) ? raw : "en";
+  redirect(`/${locale}/app/settings/account`);
 }

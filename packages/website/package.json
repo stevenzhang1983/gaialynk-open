@@ -13,10 +13,12 @@
     "test:integration:mainline-proxy": "vitest run --config vitest.config.ts tests/mainline-proxy.test.ts",
     "release:gate": "npm run typecheck && npm run test:governance && npm run test:integration:mainline-proxy",
     "lighthouse:cwv": "node scripts/lighthouse-cwv.mjs",
+    "lighthouse:gate": "node scripts/lighthouse-performance-gate.mjs",
     "analytics:migrate": "node scripts/migrate-analytics.mjs",
     "analytics:cleanup": "node scripts/cleanup-analytics.mjs"
   },
   "dependencies": {
+    "@gaialynk/shared": "file:../shared",
     "framer-motion": "^12.38.0",
     "next": "^15.3.1",
     "pg": "^8.16.3",

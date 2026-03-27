@@ -60,6 +60,9 @@ describe("trust.engine", () => {
     expect(decision.decision).toBe("need_confirmation");
     expect(decision.required_actions).toContain("user_confirmation");
     expect(decision.policy_rule_id).toBe("high_requires_confirmation");
+    expect(decision.user_facing_message.zh).toContain("风险");
+    expect(decision.user_facing_message.en.toLowerCase()).toContain("risk");
+    expect(decision.user_facing_message.ja).toMatch(/リスク|確認/);
   });
 
   it("returns allow for low risk", () => {

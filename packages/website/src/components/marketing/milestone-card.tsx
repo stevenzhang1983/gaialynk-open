@@ -3,18 +3,22 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import type { MilestoneCardData } from "@/content/roadmap-full";
+import type { Locale } from "@/lib/i18n/locales";
+import { StatusBadge } from "@/components/status-badge";
+import { RichLine } from "@/components/marketing/rich-line";
 
 type MilestoneCardProps = {
   milestone: MilestoneCardData;
   capabilityLabel?: string;
+  locale: Locale;
 };
 
 /**
  * T-3.8 / T-6.1 七大里程碑卡片：展开详情用 Framer Motion；卡片 hover 仍用 Tailwind。
  */
-export function MilestoneCard({ milestone, capabilityLabel = "Key capabilities" }: MilestoneCardProps) {
+export function MilestoneCard({ milestone, capabilityLabel = "Key capabilities", locale }: MilestoneCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const { id, name, description, capabilities } = milestone;
+  const { id, name, description, capabilities, consumerStatus } = milestone;
 
   return (
     <motion.div
@@ -31,16 +35,21 @@ export function MilestoneCard({ milestone, capabilityLabel = "Key capabilities" 
         aria-expanded={expanded}
         aria-controls={`milestone-card-${id}`}
       >
-        <div className="flex w-full items-center justify-between gap-2">
-          <span className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-semibold text-foreground">{id}</span>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs font-semibold text-foreground">{id}</span>
+            <StatusBadge status={consumerStatus} locale={locale} />
+          </div>
           <span className={`shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : "rotate-0"}`} aria-hidden>
             <svg className="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </span>
         </div>
-        <h3 className="font-semibold text-foreground">{name}</h3>
-        <p className="line-clamp-2 text-sm text-muted-foreground">{description}</p>
+        <h3 className="text-base font-semibold leading-snug text-foreground">{name}</h3>
+        <p className="line-clamp-3 text-base leading-relaxed text-muted-foreground">
+          <RichLine text={description} />
+        </p>
       </button>
       <motion.div
         id={`milestone-card-${id}`}

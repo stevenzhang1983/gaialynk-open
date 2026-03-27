@@ -21,7 +21,7 @@ export async function generateMetadata({
 
 /**
  * T-7.1 /app 产品区正门：
- * - 未登录：可浏览 Agent 目录
+ * - 未登录：可浏览智能体中心（Agent Hub）
  * - 写操作（如发送消息）触发登录（由 ChatWindow/InputBar 处理）
  */
 export default async function ProductAppHome({

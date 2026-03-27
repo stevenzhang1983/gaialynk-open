@@ -12,69 +12,71 @@ type CaseItem = {
 const COPY_BY_LOCALE: Record<Locale, Record<string, CaseItem>> = {
   en: {
     "multi-agent-dev": {
-      title: "Ask once, route to specialist agents",
-      description: "Start with one request and let GaiaLynk coordinate specialist agents with traceable decisions and results.",
+      title: "Multiple listed agents, one thread",
+      description:
+        "Pick **several listed agents** in the Agent Hub; handoffs stay **legible** in one conversation.",
       status: "Now",
     },
     "high-risk-approval": {
-      title: "High-risk approval workflow",
-      description: "Sensitive actions are gated by policy outcomes, review queue, and explicit human confirmation.",
+      title: "High-impact steps wait for you",
+      description:
+        "Sensitive actions **pause** until **you** confirm—policy and review before execution.",
       status: "Now",
     },
     "node-collaboration": {
-      title: "Cross-node trusted collaboration",
+      title: "Cross-node collaboration",
       description:
-        "Federated directory, cross-node discovery, and governed invocation chains are on the near-term roadmap—reserve a conversation to shape priorities.",
+        "**Exploring** federated node topologies—**timing and scope** stay on the **roadmap**.",
       status: "Coming Soon",
     },
     "autonomous-revenue-ops": {
-      title: "Recurring automation and growth operations",
-      description: "This scenario is in research and targets policy-governed recurring automation after MVP.",
+      title: "Recurring operations",
+      description:
+        "**Early exploration:** recurring-ops stories—**when they land** follows the **roadmap**.",
       status: "Research",
     },
   },
   "zh-Hant": {
     "multi-agent-dev": {
-      title: "一次提需求，自動路由給專業 Agent",
-      description: "從一條需求開始，由 GaiaLynk 協調專業 Agent，並保留可追蹤決策與結果證據。",
+      title: "單一對話，多個已上架智能體",
+      description: "於**智能體中心**選用**多個已上架智能體**；交接在同一對話中**清楚可讀**。",
       status: "Now",
     },
     "high-risk-approval": {
-      title: "高風險動作審批流程",
-      description: "敏感操作透過策略結果、審批佇列與人工確認形成可治理閉環。",
+      title: "高影響步驟等待您確認",
+      description: "敏感操作**暫停**，直至**您**確認——執行前經策略與覆核。",
       status: "Now",
     },
     "node-collaboration": {
-      title: "跨節點可信協作",
-      description:
-        "聯邦目錄、跨節點發現與可治理調用鏈已排入近程路線圖；預約對談以對齊優先順序。",
+      title: "跨節點協作",
+      description: "正在**探索**聯邦節點拓撲——**時間與範圍**請看**路線圖**。",
       status: "Coming Soon",
     },
     "autonomous-revenue-ops": {
-      title: "週期自動化與增長運營",
-      description: "此場景目前為研究階段，面向 MVP 後的可治理週期自動化。",
+      title: "週期性營運場景",
+      description: "**早期探索**：週期性營運相關敘事——**何時可做**隨**路線圖**更新。",
       status: "Research",
     },
   },
   "zh-Hans": {
     "multi-agent-dev": {
-      title: "一次提需求，自动路由给专业 Agent",
-      description: "从一条需求开始，由 GaiaLynk 协调专业 Agent，并保留可追踪决策与结果证据。",
+      title: "单一会话，多个已上架智能体",
+      description: "在**智能体中心**选用**多个已上架智能体**；交接在同一会话中**清楚可读**。",
       status: "Now",
     },
     "high-risk-approval": {
-      title: "高风险动作审批流程",
-      description: "敏感操作通过策略结果、审批队列与人工确认形成可治理闭环。",
+      title: "高影响步骤等待您确认",
+      description: "敏感操作**暂停**，直至**您**确认——执行前经策略与复核。",
       status: "Now",
     },
     "node-collaboration": {
-      title: "跨节点可信协作",
-      description: "联邦目录、跨节点发现与可治理调用链已排入近程路线图；预约沟通以校准优先级。",
+      title: "跨节点协作",
+      description: "正在**探索**联邦节点拓扑——**时间与范围**请看**路线图**。",
       status: "Coming Soon",
     },
     "autonomous-revenue-ops": {
-      title: "周期自动化与增长运营",
-      description: "该场景当前为研究阶段，面向 MVP 后的可治理周期自动化。",
+      title: "周期性运营场景",
+      description: "**早期探索**：周期性运营相关叙事——**何时可做**随**路线图**更新。",
       status: "Research",
     },
   },
@@ -96,9 +98,9 @@ export default async function UseCaseDetailPage({
   }
 
   const ctaText = {
-    en: { now: "Start Building", later: "Book a Demo" },
-    "zh-Hant": { now: "開始構建", later: "預約 Demo" },
-    "zh-Hans": { now: "开始构建", later: "预约 Demo" },
+    en: { now: "Start Building", later: "Help center" },
+    "zh-Hant": { now: "開始構建", later: "說明中心" },
+    "zh-Hans": { now: "开始构建", later: "帮助中心" },
   }[locale];
 
   return (
@@ -124,13 +126,13 @@ export default async function UseCaseDetailPage({
         </CtaLink>
       ) : (
         <CtaLink
-          href={`/${locale}/demo`}
+          href={`/${locale}/help`}
           eventName="cta_click"
           eventPayload={{
             locale,
             page: `use_case_${slug}`,
             referrer: "internal",
-            cta_id: "book_demo",
+            cta_id: "help_center",
           }}
         >
           {ctaText.later}

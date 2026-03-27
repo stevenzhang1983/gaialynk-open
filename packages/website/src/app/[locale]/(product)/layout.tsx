@@ -1,8 +1,15 @@
 import type { ReactNode } from "react";
 import { getDictionary } from "@/content/dictionaries";
-import { getAuthFormsCopy, getProductUiCopy } from "@/content/i18n/product-experience";
+import {
+  getAuthFormsCopy,
+  getProductUiCopy,
+  getW6ConversationLifecycleCopy,
+  getW8NotificationCenterCopy,
+} from "@/content/i18n/product-experience";
+import { ConversationLifecycleProvider } from "@/components/product/conversation-lifecycle-context";
 import { AgentDirectoryProvider } from "@/components/product/agent-directory-context";
 import { PanelFocusProvider } from "@/components/product/context-panel/panel-focus-context";
+import { SpaceProvider } from "@/components/product/space-context";
 import { ProductShell } from "@/components/product/shell";
 import type { SidebarNavItem } from "@/components/product/sidebar";
 import { isSupportedLocale } from "@/lib/i18n/locales";
@@ -50,6 +57,8 @@ export default async function ProductLayout({
   const dict = getDictionary(locale);
   const nav = dict.nav;
   const productUi = getProductUiCopy(locale);
+  const w6Lifecycle = getW6ConversationLifecycleCopy(locale);
+  const w8Notifications = getW8NotificationCenterCopy(locale);
   const authForms = getAuthFormsCopy(locale);
   const sidebarItems = buildSidebarItems(locale, nav, productUi.chat);
   const auth = dict.auth;
@@ -58,15 +67,21 @@ export default async function ProductLayout({
     <div data-cjk-prefer={cjkPrefer(locale)}>
       <AgentDirectoryProvider>
         <PanelFocusProvider>
-          <ProductShell
-          locale={locale}
-          sidebarItems={sidebarItems}
-          productUi={productUi}
-          loginLabel={auth?.loginCta ?? authForms.login.signIn}
-          settingsLabel={nav.settings ?? "Settings"}
-        >
-            {children}
-          </ProductShell>
+          <SpaceProvider locale={locale}>
+            <ConversationLifecycleProvider>
+              <ProductShell
+                locale={locale}
+                sidebarItems={sidebarItems}
+                productUi={productUi}
+                w6Lifecycle={w6Lifecycle}
+                w8Notifications={w8Notifications}
+                loginLabel={auth?.loginCta ?? authForms.login.signIn}
+                settingsLabel={nav.settings ?? "Settings"}
+              >
+                {children}
+              </ProductShell>
+            </ConversationLifecycleProvider>
+          </SpaceProvider>
         </PanelFocusProvider>
       </AgentDirectoryProvider>
     </div>

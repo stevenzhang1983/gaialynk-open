@@ -27,26 +27,36 @@
     "test:website": "npm --prefix packages/website run test",
     "test:website:governance": "npm --prefix packages/website run test:governance",
     "release:gate:website": "npm --prefix packages/website run release:gate",
+    "integration:v1.3-local": "bash scripts/v1.3-local-integration-gate.sh",
     "test": "vitest run",
     "test:contracts:mainline": "vitest run packages/server/tests/mainline-contract-compatibility.test.ts",
     "test:pg": "vitest run packages/server/tests/postgres-integration.test.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "typecheck:website": "npm --prefix packages/website run typecheck"
+    "typecheck:website": "npm --prefix packages/website run typecheck",
+    "dev:connector": "npm --prefix packages/connector run tauri:dev",
+    "build:connector": "npm --prefix packages/connector run tauri:build",
+    "test:connector:rust": "cd packages/connector/src-tauri && cargo test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@gaialynk/shared": "file:packages/shared",
     "@hono/node-server": "^1.19.11",
+    "@hono/node-ws": "^1.3.0",
+    "cron-parser": "^5.5.0",
     "hono": "^4.12.7",
+    "ioredis": "^5.8.2",
     "pg": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@types/pg": "^8.18.0",
+    "@types/ws": "^8.18.1",
+    "ioredis-mock": "^8.13.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

@@ -85,7 +85,12 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Live website funnel snapshot for entry conversion decisions.</p>
+          <p className="text-sm text-muted-foreground">
+            Live website funnel snapshot for entry conversion decisions.{" "}
+            <a className="underline" href={`/${initialLocale}/app/founder-metrics`}>
+              Founder 看板（产品主线路埋点）
+            </a>
+          </p>
         </div>
         <label className="space-y-2 text-sm">
           <span className="text-muted-foreground">Locale</span>
@@ -128,13 +133,13 @@ export function AnalyticsDashboard({ initialLocale }: AnalyticsDashboardProps) {
           <h2 className="text-sm font-semibold">Consumer Funnel</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>Open App Clicks: {snapshot?.consumerFunnel.openAppClicks ?? 0}</li>
-            <li>Browse Agent Directory: {snapshot?.consumerFunnel.browseAgentsViews ?? 0}</li>
+            <li>Browse Agent Hub: {snapshot?.consumerFunnel.browseAgentsViews ?? 0}</li>
             <li>Login Trigger: {snapshot?.consumerFunnel.loginTriggers ?? 0}</li>
             <li>First Conversation: {snapshot?.consumerFunnel.firstConversations ?? 0}</li>
             <li>First Result: {snapshot?.consumerFunnel.firstResults ?? 0}</li>
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
-            Open App → Browse Directory: {snapshot?.consumerFunnel.rates.openAppToBrowseAgents ?? 0}%
+            Open App → Browse Agent Hub: {snapshot?.consumerFunnel.rates.openAppToBrowseAgents ?? 0}%
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">

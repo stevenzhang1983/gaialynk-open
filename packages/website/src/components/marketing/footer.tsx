@@ -7,14 +7,14 @@ export type FooterLabels = {
   privacy: string;
   cookies: string;
   github: string;
-  contact: string;
+  help?: string;
 };
 
 const DEFAULT_LABELS: FooterLabels = {
   privacy: "Privacy",
   cookies: "Cookies",
   github: "GitHub",
-  contact: "Contact",
+  help: "Help",
 };
 
 type FooterProps = {
@@ -23,7 +23,7 @@ type FooterProps = {
 };
 
 /**
- * T-3.7 官网区 Footer：Logo | Privacy | Cookies | GitHub | Contact。
+ * T-3.7 官网区 Footer：Logo | Help | Privacy | Cookies | GitHub。
  * 全站复用（官网区所有页面），链接目标与 CTO 指令一致。
  */
 export function Footer({ locale, labels: labelsProp }: FooterProps) {
@@ -40,6 +40,11 @@ export function Footer({ locale, labels: labelsProp }: FooterProps) {
           GaiaLynk
         </Link>
         <nav className="flex items-center gap-6" aria-label="Footer links">
+          {labels.help ? (
+            <Link href={`/${locale}/help`} className="hover:text-foreground">
+              {labels.help}
+            </Link>
+          ) : null}
           <Link href={`/${locale}/privacy`} className="hover:text-foreground">
             {labels.privacy}
           </Link>
@@ -54,9 +59,6 @@ export function Footer({ locale, labels: labelsProp }: FooterProps) {
           >
             {labels.github}
           </a>
-          <Link href={`/${locale}/demo`} className="hover:text-foreground">
-            {labels.contact}
-          </Link>
         </nav>
       </div>
     </footer>

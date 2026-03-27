@@ -1,6 +1,12 @@
 import type { Locale } from "@/lib/i18n/locales";
 
-export type VisionStatus = "Now" | "In Progress" | "Coming Soon" | "Planned" | "Research";
+export type VisionStatus =
+  | "Now"
+  | "In Progress"
+  | "Coming Soon"
+  | "Planned"
+  | "Research"
+  | "Developing";
 
 const LABELS: Record<Locale, Record<VisionStatus, string>> = {
   en: {
@@ -9,6 +15,7 @@ const LABELS: Record<Locale, Record<VisionStatus, string>> = {
     "Coming Soon": "Coming Soon",
     Planned: "Planned",
     Research: "Research",
+    Developing: "In development",
   },
   "zh-Hant": {
     Now: "已上線",
@@ -16,6 +23,7 @@ const LABELS: Record<Locale, Record<VisionStatus, string>> = {
     "Coming Soon": "即將推出",
     Planned: "規劃中",
     Research: "研究中",
+    Developing: "開發中",
   },
   "zh-Hans": {
     Now: "已上线",
@@ -23,6 +31,7 @@ const LABELS: Record<Locale, Record<VisionStatus, string>> = {
     "Coming Soon": "即将推出",
     Planned: "规划中",
     Research: "研究中",
+    Developing: "开发中",
   },
 };
 

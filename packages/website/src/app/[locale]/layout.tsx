@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { LocaleDocumentLang } from "@/components/locale-document-lang";
 import { getDictionary } from "@/content/dictionaries";
-import { isSupportedLocale, SUPPORTED_LOCALES } from "@/lib/i18n/locales";
+import { isSupportedLocale, SUPPORTED_LOCALES, type Locale } from "@/lib/i18n/locales";
 
 export function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -53,5 +54,10 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <LocaleDocumentLang locale={locale as Locale} />
+      {children}
+    </>
+  );
 }

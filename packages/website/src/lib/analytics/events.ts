@@ -15,6 +15,7 @@ export const ANALYTICS_EVENTS = [
   "consumer_login_trigger",
   "consumer_first_conversation",
   "consumer_first_result",
+  "consumer_onboarding_fast_path",
   "provider_login_trigger",
   "provider_agent_info_filled",
   "provider_first_test_call_success",

@@ -21,45 +21,52 @@
 
 > 这组任务产出的设计系统是后续所有 UI 开发的基础。必须最先完成。
 
-### T-1.1 品牌色彩系统定义 `[官网]`
+### T-1.1 品牌色彩系统定义 `[官网]` ✅ 已完成（v1.2 更新）
 
 **做什么**：定义整套品牌色彩体系，输出为 CSS Variables / Tailwind theme config。
 
 **怎么做**：
 1. 使用 impeccable.style 的 `colorize` skill
-2. 方向：深空色主色调 + 冷调蓝绿渐变品牌色 + 高对比度 accent 色
+2. ~~方向：深空色主色调 + 冷调蓝绿渐变品牌色 + 高对比度 accent 色~~ →
+   **v1.2 更新**：默认改为**高科技明亮主题**（参考 Linear / Vercel / chekusu.com），冷白底（`248 250 255`）+ 深海军蓝文字（`12 18 36`）+ 电光青主色（`0 172 196`）。暗色模式保留在 `[data-theme="dark"]` 中备用。
 3. 需要覆盖：primary / secondary / accent / background / surface / border / text 各层级
 4. 官网区和产品区共享同一套色彩 Token，仅在使用方式上有差异
 
 **交付物**：
-- `design-tokens/colors.css`（CSS Variables）
-- Tailwind `theme.extend.colors` 配置
-- 色彩使用规范文档（哪个色用在什么场景）
+- [x] `design-tokens/colors.css`（CSS Variables，明亮主题为默认，暗色为 `[data-theme="dark"]` 覆盖）
+- [x] Tailwind `theme.extend.colors` 配置
+- [x] 色彩使用规范文档（`design-tokens/COLOR-USAGE.md`）
 
 **验收条件**：
-- [ ] 品牌主色与当前 Logo 协调
-- [ ] 暗色模式下 WCAG AA 对比度达标
-- [ ] 官网区和产品区使用同一套 Token
+- [x] 品牌主色与当前 Logo 协调
+- [x] 明亮模式下 WCAG AA 对比度达标（深海军蓝 `12 18 36` 对白底 > 15:1）
+- [x] 官网区和产品区使用同一套 Token
 
-### T-1.2 字体系统定义 `[官网]`
+**变更记录**：PR #38（2026-03-20）将默认从暗色切换到明亮主题，同步更新 `effects.css` 阴影/毛玻璃/遮罩
+
+### T-1.2 字体系统定义 `[官网]` ✅ 已完成（v1.2 更新）
 
 **做什么**：选定品牌字体并输出配置。
 
 **怎么做**：
 1. 使用 impeccable.style 的 `typeset` skill
-2. 英文：选定展示字体（Hero / H1-H3）+ 正文字体（body / caption）
-3. 中文（简/繁）：选用高品质中文字体（思源黑体 / Noto Sans CJK 或同级）
-4. 定义字号阶梯、行高、字重规范
+2. 英文展示字体：~~Syne~~ → **Space Grotesk**（几何感科技风，字形比例标准，无降部溢出问题）；正文字体：**Plus Jakarta Sans**
+3. 中文（简/繁）：**Noto Sans SC / TC**
+4. 定义字号阶梯、行高（含 `--leading-hero: 1.2` Hero 专用行高）、字重规范
 
 **交付物**：
-- `design-tokens/typography.css`
-- Tailwind typography 配置
-- 字体加载策略（Next.js `next/font` 配置）
+- [x] `design-tokens/typography.css`（含 `--leading-hero` Hero 专用行高）
+- [x] Tailwind typography 配置
+- [x] 字体加载策略（`src/lib/fonts.ts`，`next/font` preload）
 
 **验收条件**：
-- [ ] Hero H1 在桌面端视觉有力量感，不超过两行
-- [ ] 中英文混排时基线对齐、间距和谐
-- [ ] 字体加载不阻塞 FCP
+- [x] Hero H1 在桌面端视觉有力量感，不超过两行
+- [x] 中英文混排时基线对齐、间距和谐
+- [x] 字体加载不阻塞 FCP
+
+**变更记录**：
+- PR #38（2026-03-20）新增 `--leading-hero` 行高变量
+- PR #40（2026-03-20）将展示字体从 Syne 换为 Space Grotesk —— Syne 的 "g" 降部异常深（~0.35em），在 Hero 56px 字号下无法用合理行高容纳
 
 ### T-1.3 组件风格规范 `[官网]` ✅ 规范已定稿
 
@@ -771,19 +778,20 @@
 
 > 在功能骨架完成后执行。
 
-### T-6.1 品牌动效开发 `[官网]`
+### T-6.1 品牌动效开发 `[官网]` 🔄 部分完成（v1.2 更新）
 
 **前置依赖**：T-3.1（Hero 区域）
 
 **做什么**：为关键区域添加品牌动效。
 
 **清单**：
-1. Hero 背景动效（节点连接线 / 网格呼吸动画）
+1. [x] Hero 背景动效（节点连接线 / 网格呼吸动画）—— `hero-background.module.css`，明亮主题已调低透明度
 2. 价值主张卡片入场 stagger 动画
 3. How It Works 流程 scroll-triggered reveal
 4. 路线图时间线交互动画
 5. 聊天消息入场动画
 6. 侧边栏切换过渡动效
+7. [x] **alma.now 风格 3D 悬浮动效**（v1.2 新增）—— `useTilt` hook（`src/hooks/use-tilt.ts`），鼠标跟踪 `perspective + rotateX/Y + scale3d`，基于 `requestAnimationFrame` 直接操控 DOM，尊重 `prefers-reduced-motion`；已应用于 `ProductPreviewMockup`（max: 6°）和 `FeatureShowcase` 各 Mockup 卡片（max: 8°）
 
 **技术约束**：
 - 使用 CSS animation / Framer Motion / lightweight canvas
@@ -803,7 +811,7 @@
 - **hover 边框/阴影、颜色、chevron 旋转、链接 transition-colors**：仅用 Tailwind，不再叠加 Framer Motion。
 - **同一元素**不得同时用「CSS transition 做位移/透明度入场」与 Framer Motion——已拆掉原 `translate-y` + `opacity` + `transition-all` 那类写法，避免双套实现。
 
-### T-6.2 特性展示区域（alma.now 风格）`[官网]`
+### T-6.2 特性展示区域（alma.now 风格）`[官网]` 🔄 部分完成（v1.2 更新）
 
 **前置依赖**：T-3.2（产品界面 Mockup 已就位）
 
@@ -823,9 +831,21 @@
 
 **验收条件**：
 - [ ] 每个区块有真实截图/高保真 Mockup
-- [ ] 卡片展示方式参考 alma.now（不是纯文字列表）
+- [x] 卡片展示方式参考 alma.now（不是纯文字列表）—— 已使用 `useTilt` 实现鼠标跟踪 3D 悬浮效果
 
 **演进说明**：后续若替换为真实截图，只需在区块中改为使用 Next.js `<Image>`（`next/image`）或静态资源路径即可。
+
+**变更记录**：PR #38（2026-03-20）为 `FeatureShowcaseSection` 各 Mockup 添加 `TiltMockup` 包裹组件（`useTilt(ref, { max: 8, scale: 1.03 })`），移除之前的固定 `rotate` 样式；PR #39 移除多余的 `overflow-x-hidden` 修复滚动条问题
+
+### T-6.2.1 滚动条修复 `[官网]` ✅ 已完成（v1.2 新增）
+
+**问题**：`FeatureShowcaseSection` 的 `<section>` 设置了 `overflow-x-hidden`，CSS 规范中当 `overflow-x` 为 `hidden` 时 `overflow-y` 隐式变为 `auto`，导致出现多余垂直滚动条。父级 `MarketingLayout` 已处理 `overflow-x-hidden`，section 级无需重复声明。
+
+**修复**：移除 `FeatureShowcaseSection` 的 `overflow-x-hidden`。
+
+**变更记录**：PR #39（2026-03-20）
+
+---
 
 ### T-6.3 移动端适配 `[官网]`
 
@@ -999,6 +1019,48 @@ T-4.8 Provider Onboarding  T-5.4 Agent 接入 API        ✗ 需真实 API
 
 ---
 
-*文档版本：v1（2026-03-18）*  
+*文档版本：v1.2（2026-03-20）*  
 *签发：CTO（联合创始人/技术最高负责人）*  
 *状态：即刻生效*
+
+---
+
+## 附录 A：文档变更日志
+
+| 版本 | 日期 | 变更摘要 |
+|------|------|---------|
+| v1 | 2026-03-18 | 初始签发 |
+| v1.2 | 2026-03-20 | **2026-03-20 视觉与字体优化日总结**（PR #38 / #39 / #40）—— 详见下方 |
+
+### v1.2 变更明细（2026-03-20）
+
+**1. 色彩系统从暗色切换到高科技明亮主题（T-1.1）**
+- `:root` 默认改为明亮主题：冷白底 `248 250 255`、深海军蓝前景 `12 18 36`、电光青主色 `0 172 196`
+- 暗色模式完整保留于 `[data-theme="dark"]`
+- `effects.css` 同步翻转：阴影/毛玻璃/遮罩均为明亮模式优化
+- 清理 10+ 组件中的 `dark:` Tailwind 修饰符
+- 修复 `text-warning-foreground`（白色）在浅色背景上不可见的问题 → 对应位置改为 `text-amber-800`
+
+**2. 展示字体从 Syne 换为 Space Grotesk（T-1.2）**
+- Syne 的 "g" 降部异常深（~0.35em below baseline），在 Hero 56px 字号下无法用合理行高容纳
+- Space Grotesk：几何感科技风，标准降部，保留了技术品牌气质
+- `--leading-hero` 从 1.3 回调至 1.2（Space Grotesk 无需额外行高补偿）
+
+**3. alma.now 风格 3D 悬浮动效（T-6.1 / T-6.2）**
+- 新增 `useTilt` hook（`src/hooks/use-tilt.ts`）：鼠标跟踪 → `perspective(1200px) rotateX/Y + scale3d`
+- 基于 `requestAnimationFrame` 直操 DOM，零重渲染
+- 尊重 `prefers-reduced-motion` 系统设置
+- 应用于 `ProductPreviewMockup`（max: 6°, scale: 1.015）和 `FeatureShowcase` 各 Mockup（max: 8°, scale: 1.03）
+- 移除之前的固定 `rotate`/`perspective` 静态样式
+
+**4. 滚动条修复（T-6.2.1）**
+- `FeatureShowcaseSection` 的 `overflow-x-hidden` 导致 `overflow-y` 隐式变 `auto` → 多余垂直滚动条
+- 父级 `MarketingLayout` 已处理 `overflow-x-hidden`，移除 section 级重复声明
+
+**5. Hero 背景适配明亮主题**
+- `hero-background.module.css`：grid/glow/lines/nodes 透明度全面调低（如 glow 从 0.22 → 0.1），在白底上保持精致而不喧宾夺主
+
+**涉及的 GitHub PR**：
+- PR #38：色彩系统翻转 + alma.now 3D tilt + Hero 背景调优 + dark: 清理
+- PR #39：滚动条修复（移除 overflow-x-hidden）
+- PR #40：Syne → Space Grotesk 字体替换 + leading-hero 回调

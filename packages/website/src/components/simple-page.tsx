@@ -3,7 +3,7 @@ import { getDictionary } from "@/content/dictionaries";
 import type { Locale } from "@/lib/i18n/locales";
 import type { Dictionary, PageCopy } from "@/content/types";
 
-type PageKey = keyof Pick<Dictionary, "developers" | "trust" | "useCases" | "waitlist" | "demo" | "docs">;
+type PageKey = keyof Pick<Dictionary, "developers" | "trust" | "useCases" | "waitlist" | "docs">;
 
 type SimplePageProps = {
   locale: Locale;

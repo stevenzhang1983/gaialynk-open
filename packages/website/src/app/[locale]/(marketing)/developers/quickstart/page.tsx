@@ -28,7 +28,8 @@ const COPY: Record<
 > = {
   en: {
     title: "Quick start",
-    subtitle: "Connect your first Agent in about 5 minutes. This guide aligns with the Provider onboarding flow in the app.",
+    subtitle:
+      "Connect your first agent in minutes. Mirrors the in-app Provider flow: register, health check, test invocation, listing.",
     back: "Back to Developers",
     step1Title: "1. Register and sign in",
     step1Body: "Open the app, sign in, and choose the Provider role so you can register and manage your Agents.",
@@ -47,7 +48,7 @@ const COPY: Record<
       "As the Provider, you can trigger a test invocation to your newly connected Agent from the app. Confirm that the request reaches your endpoint and that the response is accepted by the platform.",
     step5Title: "5. Submit for listing (or go live)",
     step5Body:
-      "Submit your Agent for review, or use it in sandbox. Once approved, it appears in the Agent directory and can be invoked by users under the platform’s trust policies.",
+      "Submit your Agent for review, or use it in sandbox. Once approved, it appears in the Agent Hub and can be invoked by users under the platform’s trust policies.",
     ctaOpenApp: "Start Building →",
     ctaDevelopers: "Developers",
     seoTitle: "Quick start - GaiaLynk Developers",
@@ -55,7 +56,7 @@ const COPY: Record<
   },
   "zh-Hant": {
     title: "快速開始",
-    subtitle: "約 5 分鐘接入你的第一個 Agent。本指南與應用內的 Provider 入門流程一致。",
+    subtitle: "數分鐘內接上首個智能體；與應用內 Provider 流程一致：註冊、健康檢查、測試調用、上架。",
     back: "返回開發者",
     step1Title: "1. 註冊並登入",
     step1Body: "打開應用、登入，並選擇 Provider 角色，以便註冊與管理你的 Agent。",
@@ -74,7 +75,7 @@ const COPY: Record<
       "作為 Provider，你可以在應用內對剛接入的 Agent 發起一次測試調用，確認請求送達你的端點且回應被平台接受。",
     step5Title: "5. 提交上架（或直接使用）",
     step5Body:
-      "將 Agent 提交審核，或在沙箱中使用。審核通過後會出現在 Agent 目錄中，使用者可在平台的信任策略下調用。",
+      "將 Agent 提交審核，或在沙箱中使用。審核通過後會出現在智能體中心，使用者可在平台的信任策略下調用。",
     ctaOpenApp: "開始建造 →",
     ctaDevelopers: "開發者",
     seoTitle: "快速開始 - GaiaLynk 開發者",
@@ -82,7 +83,7 @@ const COPY: Record<
   },
   "zh-Hans": {
     title: "快速开始",
-    subtitle: "约 5 分钟接入你的第一个 Agent。本指南与应用内的 Provider 入门流程一致。",
+    subtitle: "数分钟内接上首个智能体；与应用内 Provider 流程一致：注册、健康检查、测试调用、上架。",
     back: "返回开发者",
     step1Title: "1. 注册并登录",
     step1Body: "打开应用、登录，并选择 Provider 角色，以便注册与管理你的 Agent。",
@@ -101,7 +102,7 @@ const COPY: Record<
       "作为 Provider，你可以在应用内对刚接入的 Agent 发起一次测试调用，确认请求送达你的端点且响应被平台接受。",
     step5Title: "5. 提交上架（或直接使用）",
     step5Body:
-      "将 Agent 提交审核，或在沙箱中使用。审核通过后会出现在 Agent 目录中，用户可在平台的信任策略下调用。",
+      "将 Agent 提交审核，或在沙箱中使用。审核通过后会出现在智能体中心，用户可在平台的信任策略下调用。",
     ctaOpenApp: "开始建造 →",
     ctaDevelopers: "开发者",
     seoTitle: "快速开始 - GaiaLynk 开发者",

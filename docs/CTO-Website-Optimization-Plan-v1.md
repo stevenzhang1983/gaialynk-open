@@ -459,22 +459,24 @@ gaialynk-a2a.vercel.app（或后续自定义域名）
 
 ### 4.2 视觉方向建议
 
-| 维度 | 当前 | 目标 |
-|------|------|------|
-| **色彩** | 基础暗色主题 + 淡蓝高亮 | 深空色主题 + 品牌主色（建议冷调蓝绿渐变） + 高对比度 accent |
-| **字体** | 系统默认 | 引入品牌字体（如 Inter + 展示用字体），中文使用高品质字体 |
-| **动效** | 无 | Hero 背景网格动画、卡片入场 stagger、scroll-triggered reveal、hover 微交互 |
-| **间距** | 偏紧凑 | 更大的呼吸空间，特别是 Hero 区域和核心价值主张区域 |
-| **图标/插图** | 无 | 为核心概念设计品牌图标（Trust、Evidence、Policy 等） |
-| **组件风格** | 基础 border + bg-card | 毛玻璃效果、渐变边框、品牌阴影、更有质感的卡片 |
+| 维度 | 当前（v1.2 更新后） | 目标 | 状态 |
+|------|------|------|------|
+| **色彩** | ~~基础暗色主题~~ → **高科技明亮主题**：冷白底 `248 250 255` + 深海军蓝文字 `12 18 36` + 电光青主色 `0 172 196`；暗色模式保留于 `[data-theme="dark"]` | 明亮主题突出专业感与高科技质感（参考 Linear / Vercel / chekusu.com） | ✅ 已落地 |
+| **字体** | ~~系统默认~~ → 展示字体：**Space Grotesk**（几何科技风）；正文：**Plus Jakarta Sans**；中文：**Noto Sans SC/TC** | 品牌字体统一定义 + 字号阶梯 + `next/font` 预加载 | ✅ 已落地 |
+| **动效** | ~~无~~ → Hero 背景网格/光晕/连接线呼吸动画 + alma.now 风格 `useTilt` 3D 悬浮 | Hero 背景网格动画、卡片入场 stagger、scroll-triggered reveal、hover 微交互 | 🔄 部分 |
+| **间距** | 偏紧凑 | 更大的呼吸空间，特别是 Hero 区域和核心价值主张区域 | 🔄 进行中 |
+| **图标/插图** | 无 | 为核心概念设计品牌图标（Trust、Evidence、Policy 等） | 待执行 |
+| **组件风格** | ~~基础 border + bg-card~~ → 明亮主题毛玻璃（`rgb(255 255 255 / 0.82)`）、品牌阴影、质感卡片 | 毛玻璃效果、渐变边框、品牌阴影、更有质感的卡片 | ✅ 已落地 |
 
 ### 4.3 产品区视觉
 
 产品区（IM 界面）与官网区共享品牌色系，但视觉密度更高：
-- 侧边栏：深色背景、紧凑列表
+- 侧边栏：~~深色背景~~ → 明亮主题下使用浅色面板（`surface` / `surface-raised`），紧凑列表
 - 聊天区：适当留白但信息密度高
 - 右侧面板：信息清晰分区、数据可视化
-- 整体参考：**alma.now**（聊天界面的优雅感） + **Slack**（IM 布局成熟度） + **Linear**（信息密度 + 美感平衡）+ **Vercel Dashboard**（工程师审美）
+- 整体参考：**alma.now**（聊天界面的优雅感 + 3D 悬浮动效） + **Slack**（IM 布局成熟度） + **Linear**（信息密度 + 美感平衡）+ **Vercel Dashboard**（工程师审美）
+
+> **v1.2 更新**：产品预览 Mockup 和特性展示卡片已实现 alma.now 风格的鼠标跟踪 3D 悬浮效果（`useTilt` hook），取代之前的固定角度 `rotate` 样式。
 
 ### 4.4 官网特性展示方式（借鉴 alma.now）
 
@@ -708,7 +710,28 @@ alma.now 的特性展示模式非常有效：每个功能 = **真实界面截图
 
 ---
 
-*文档版本：v1.1（2026-03-18）*  
+*文档版本：v1.2（2026-03-20）*  
 *作者：CTO（联合创始人/技术最高负责人）*  
 *状态：Founder 审阅后修订定稿（§6 额外优化点已定稿）*  
-*v1.1 变更：合并 Docs 入 Developers、取消 /trust-flow 和 /waitlist、/node-collaboration 标 Coming Soon、/demo 极简实现、双用户类型 + 双 Onboarding 路径、产品区浏览免登录*
+*v1.1 变更：合并 Docs 入 Developers、取消 /trust-flow 和 /waitlist、/node-collaboration 标 Coming Soon、/demo 极简实现、双用户类型 + 双 Onboarding 路径、产品区浏览免登录*  
+*v1.2 变更（2026-03-20）：§4.2 视觉方向更新为明亮主题实际落地状态；§4.3 新增 alma.now 3D 悬浮动效落地说明；字体确定为 Space Grotesk + Plus Jakarta Sans + Noto Sans SC/TC*
+
+---
+
+## 附录 A：2026-03-20 视觉优化执行总结
+
+### 今日交付的三个 PR
+
+| PR | 标题 | 核心变更 |
+|----|------|---------|
+| **#38** | 高科技明亮主题 + alma.now 3D tilt + Hero 优化 | 色彩系统从暗色翻转到明亮主题；新增 `useTilt` hook 实现鼠标跟踪 3D 悬浮；Hero 背景适配白底；清理 `dark:` 修饰符；修复浅色背景上的文字对比度 |
+| **#39** | 滚动条修复 | 移除 `FeatureShowcaseSection` 多余 `overflow-x-hidden`（CSS 规范导致隐式 `overflow-y: auto` → 多余滚动条） |
+| **#40** | Syne → Space Grotesk 字体替换 | 解决 Syne "g" 降部异常深导致 Hero 标题溢出/裁切的根本问题；Space Grotesk 几何感科技风，降部正常 |
+
+### 技术决策记录
+
+1. **为什么从暗色改为明亮主题？** 用户明确要求"非暗色、明亮、但高科技"。冷白底 + 电光青 + 深海军蓝文字组合在 Linear / Vercel / chekusu.com 等参考站得到验证，兼顾专业感与科技质感。暗色模式完整保留于 `[data-theme="dark"]`，未来可一键切回或支持用户偏好切换。
+
+2. **为什么换掉 Syne 字体？** Syne 的 "g" 降部比标准字体深约 0.35em，在 Hero 56px 字号下需要 `line-height: 1.7` 才能完全容纳——这会导致多行标题间距过大、视觉松散。经过两轮调整（`--leading-hero: 1.3`）仍不理想，最终判断为字体本身的设计限制，不应用 CSS hack 强行兼容。Space Grotesk 保持了几何感科技风格，降部标准，`line-height: 1.2` 即足够。
+
+3. **`useTilt` 为什么用 rAF + 直操 DOM？** 避免 React re-render 性能开销。鼠标移动事件频率高（60+ fps），通过 `requestAnimationFrame` 节流 + 直接修改 `el.style.transform` 实现零重渲染。同时 `mouseleave` 恢复平坦状态时使用 CSS `transition` 做平滑过渡。

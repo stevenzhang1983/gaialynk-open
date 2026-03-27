@@ -5,6 +5,8 @@ type PanelLayoutProps = {
   locale: Locale;
   title: string;
   description?: string;
+  /** 顶部返回链接目标，默认回 Chat */
+  backHref?: string;
   backToChatLabel?: string;
   children: React.ReactNode;
 };
@@ -16,15 +18,17 @@ export function PanelLayout({
   locale,
   title,
   description,
+  backHref,
   backToChatLabel = "← Chat",
   children,
 }: PanelLayoutProps) {
+  const back = backHref ?? `/${locale}/app/chat`;
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <Link
-            href={`/${locale}/app/chat`}
+            href={back}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
             {backToChatLabel}

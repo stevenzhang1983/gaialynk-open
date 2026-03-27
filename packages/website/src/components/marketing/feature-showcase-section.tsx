@@ -61,7 +61,7 @@ function MockupMarketplace() {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
       <div className="border-b border-border bg-surface-raised px-2.5 py-1.5">
-        <span className="text-[10px] font-semibold text-foreground">Agent directory</span>
+        <span className="text-[10px] font-semibold text-foreground">Agent Hub</span>
       </div>
       <div className="grid grid-cols-2 gap-1.5 p-2">
         {["Alpha", "Beta", "Gamma", "Delta"].map((name, i) => (

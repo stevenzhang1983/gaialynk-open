@@ -45,6 +45,8 @@ export interface AgentStats {
   };
 }
 
+export type TrustBadge = "unverified" | "consumer_ready" | "high_sensitivity_enhanced";
+
 export interface AgentDetailEnriched {
   agent: Agent;
   identity_verified: boolean;
@@ -53,6 +55,28 @@ export interface AgentDetailEnriched {
   success_rate: number;
   risk_level: RiskLevel;
   feedback_summary: AgentStats["feedback_summary"];
+  trust_badge: TrustBadge;
+}
+
+/** Listing tier (status) + capability risk + coarse reputation → single badge for directory cards */
+export function computeTrustBadge(input: {
+  agent: Agent;
+  identity_verified: boolean;
+  reputation_grade: "A" | "B" | "C" | "D";
+  max_risk: RiskLevel;
+}): TrustBadge {
+  const st = input.agent.status ?? "active";
+  if (st === "deprecated") {
+    return "unverified";
+  }
+  if (!input.identity_verified || st === "pending_review") {
+    return "unverified";
+  }
+  const r = input.max_risk;
+  if (r === "high" || r === "medium" || r === "critical") {
+    return "high_sensitivity_enhanced";
+  }
+  return "consumer_ready";
 }
 
 export async function getAgentStatsAsync(agentId: string): Promise<AgentStats | null> {
@@ -107,13 +131,23 @@ export async function getAgentDetailEnrichedAsync(
   const stats = await getAgentStatsAsync(agentId);
   if (!stats) return null;
 
+  const identity_verified = agentIdentityVerified(agent);
+  const risk_level = agentMaxRiskLevel(agent);
+  const trust_badge = computeTrustBadge({
+    agent,
+    identity_verified,
+    reputation_grade: stats.reputation_grade,
+    max_risk: risk_level,
+  });
+
   return {
     agent,
-    identity_verified: agentIdentityVerified(agent),
+    identity_verified,
     reputation_score: stats.reputation_score,
     reputation_grade: stats.reputation_grade,
     success_rate: stats.success_rate,
-    risk_level: agentMaxRiskLevel(agent),
+    risk_level,
     feedback_summary: stats.feedback_summary,
+    trust_badge,
   };
 }

@@ -1,6 +1,7 @@
 import { randomBytes, pbkdf2Sync } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
+import { emitProductEventAsync } from "../product-events/product-events.emit";
 
 export type UserRole = "provider" | "consumer";
 
@@ -10,6 +11,72 @@ export interface User {
   role: UserRole;
   created_at: string;
   updated_at: string;
+  /** E-1: default personal Space; set after bootstrap. */
+  default_space_id?: string | null;
+  /** E-11: optional display name for directory-style member lists. */
+  display_name?: string | null;
+}
+
+/** E-16: keys align with HTML template filenames / Resend payloads. */
+export const EMAIL_NOTIFICATION_TEMPLATE_IDS = [
+  "task_completed",
+  "human_review_required",
+  "quota_warning",
+  "agent_status_changed",
+  "connector_expired",
+  "space_invitation",
+] as const;
+export type EmailNotificationTemplateId = (typeof EMAIL_NOTIFICATION_TEMPLATE_IDS)[number];
+export type UserEmailLocale = "zh" | "en" | "ja";
+
+export interface UserNotificationPreferencesJson {
+  email_enabled: boolean;
+  email_types: EmailNotificationTemplateId[];
+  email_locale: UserEmailLocale;
+}
+
+const EMAIL_TEMPLATE_ID_SET = new Set<string>(EMAIL_NOTIFICATION_TEMPLATE_IDS);
+
+export const DEFAULT_USER_NOTIFICATION_PREFERENCES_JSON: UserNotificationPreferencesJson = {
+  email_enabled: true,
+  email_types: [...EMAIL_NOTIFICATION_TEMPLATE_IDS],
+  email_locale: "en",
+};
+
+function isEmailTemplateId(s: unknown): s is EmailNotificationTemplateId {
+  return typeof s === "string" && EMAIL_TEMPLATE_ID_SET.has(s);
+}
+
+/** Merge DB or API input into canonical prefs (drops unknown email_types entries). */
+export function mergeUserNotificationPreferencesJson(raw: unknown): UserNotificationPreferencesJson {
+  const base = { ...DEFAULT_USER_NOTIFICATION_PREFERENCES_JSON };
+  if (!raw || typeof raw !== "object") return base;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.email_enabled === "boolean") base.email_enabled = o.email_enabled;
+  if (o.email_locale === "zh" || o.email_locale === "en" || o.email_locale === "ja") {
+    base.email_locale = o.email_locale;
+  }
+  if (Array.isArray(o.email_types)) {
+    const next: EmailNotificationTemplateId[] = [];
+    for (const x of o.email_types) {
+      if (isEmailTemplateId(x) && !next.includes(x)) next.push(x);
+    }
+    if (next.length > 0) base.email_types = next;
+  }
+  return base;
+}
+
+/** E-11: mask email for Space member directory (first ≤2 chars of local part + *** + @domain). */
+export function maskEmailForMemberList(email: string | null | undefined): string | null {
+  if (!email || typeof email !== "string") return null;
+  const normalized = email.trim();
+  const at = normalized.indexOf("@");
+  if (at <= 0) return "***";
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at + 1);
+  if (!domain) return "***";
+  const prefix = local.length <= 2 ? local : local.slice(0, 2);
+  return `${prefix}***@${domain}`;
 }
 
 const PBKDF2_ITERATIONS = 100000;
@@ -27,8 +94,15 @@ export function verifyPassword(password: string, salt: string, storedHash: strin
   return derived === storedHash;
 }
 
-const users = new Map<string, User & { password_hash: string; password_salt: string }>();
+type StoredUser = User & {
+  password_hash: string;
+  password_salt: string;
+  notification_preferences_json?: UserNotificationPreferencesJson | null;
+};
+const users = new Map<string, StoredUser>();
 const refreshTokensByValue = new Map<string, { userId: string; expiresAt: string }>();
+/** In-memory email prefs for user ids without a full `users` row (tests / trusted actors). */
+const memDetachedEmailPrefs = new Map<string, UserNotificationPreferencesJson>();
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -53,9 +127,11 @@ export function createUser(input: CreateUserInput): User {
     role: input.role ?? "consumer",
     created_at: now,
     updated_at: now,
+    display_name: null,
   };
-  users.set(id, { ...user, password_salt: salt, password_hash: hash });
-  return user;
+  const stored: StoredUser = { ...user, password_salt: salt, password_hash: hash, default_space_id: null };
+  users.set(id, stored);
+  return { ...user, default_space_id: null };
 }
 
 export async function createUserAsync(input: CreateUserInput): Promise<User> {
@@ -72,7 +148,12 @@ export async function createUserAsync(input: CreateUserInput): Promise<User> {
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [id, email, salt, hash, role, now, now],
   );
-  return { id, email, role, created_at: now, updated_at: now };
+  void emitProductEventAsync({
+    name: "user.registered",
+    userId: id,
+    payload: { role },
+  });
+  return { id, email, role, created_at: now, updated_at: now, default_space_id: null, display_name: null };
 }
 
 export async function getUserByEmailAsync(email: string): Promise<(User & { password_salt: string; password_hash: string }) | null> {
@@ -110,14 +191,56 @@ export async function getUserByEmailAsync(email: string): Promise<(User & { pass
 export async function getUserByIdAsync(id: string): Promise<User | null> {
   if (!isPostgresEnabled()) {
     const u = users.get(id);
-    return u ? { id: u.id, email: u.email, role: u.role, created_at: u.created_at, updated_at: u.updated_at } : null;
+    return u
+      ? {
+          id: u.id,
+          email: u.email,
+          role: u.role,
+          created_at: u.created_at,
+          updated_at: u.updated_at,
+          default_space_id: u.default_space_id ?? null,
+          display_name: u.display_name ?? null,
+        }
+      : null;
   }
-  const rows = await query<{ id: string; email: string; role: string; created_at: string; updated_at: string }>(
-    `SELECT id, email, role, created_at::text, updated_at::text FROM users WHERE id = $1`,
+  const rows = await query<{
+    id: string;
+    email: string;
+    role: string;
+    created_at: string;
+    updated_at: string;
+    default_space_id: string | null;
+    display_name: string | null;
+  }>(
+    `SELECT id, email, role, created_at::text, updated_at::text, default_space_id::text,
+            display_name
+     FROM users WHERE id = $1`,
     [id],
   );
   const r = rows[0];
-  return r ? { id: r.id, email: r.email, role: r.role as UserRole, created_at: r.created_at, updated_at: r.updated_at } : null;
+  return r
+    ? {
+        id: r.id,
+        email: r.email,
+        role: r.role as UserRole,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        default_space_id: r.default_space_id,
+        display_name: r.display_name ?? null,
+      }
+    : null;
+}
+
+export async function updateUserDefaultSpaceIdAsync(userId: string, spaceId: string | null): Promise<void> {
+  const now = nowIso();
+  if (!isPostgresEnabled()) {
+    const u = users.get(userId);
+    if (u) {
+      users.set(userId, { ...u, default_space_id: spaceId, updated_at: now });
+    }
+    return;
+  }
+  await query(`UPDATE users SET default_space_id = $2, updated_at = $3 WHERE id = $1`, [userId, spaceId, now]);
 }
 
 export async function updateUserRoleAsync(userId: string, role: UserRole): Promise<User | null> {
@@ -129,13 +252,29 @@ export async function updateUserRoleAsync(userId: string, role: UserRole): Promi
     users.set(userId, updated);
     return { id: updated.id, email: updated.email, role: updated.role, created_at: updated.created_at, updated_at: updated.updated_at };
   }
-  const result = await query<{ id: string; email: string; role: string; created_at: string; updated_at: string }>(
+  const result = await query<{
+    id: string;
+    email: string;
+    role: string;
+    created_at: string;
+    updated_at: string;
+    default_space_id: string | null;
+  }>(
     `UPDATE users SET role = $2, updated_at = $3 WHERE id = $1
-     RETURNING id, email, role, created_at::text, updated_at::text`,
+     RETURNING id, email, role, created_at::text, updated_at::text, default_space_id::text`,
     [userId, role, now],
   );
   const r = result[0];
-  return r ? { id: r.id, email: r.email, role: r.role as UserRole, created_at: r.created_at, updated_at: r.updated_at } : null;
+  return r
+    ? {
+        id: r.id,
+        email: r.email,
+        role: r.role as UserRole,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        default_space_id: r.default_space_id,
+      }
+    : null;
 }
 
 export function createRefreshToken(userId: string, ttlSeconds: number): { token: string; expiresAt: string } {
@@ -194,7 +333,54 @@ export async function revokeRefreshTokenAsync(token: string): Promise<void> {
   await query(`DELETE FROM refresh_tokens WHERE token_hash = $1`, [tokenHash]);
 }
 
+export async function getUserNotificationPreferencesJsonAsync(
+  userId: string,
+): Promise<UserNotificationPreferencesJson> {
+  if (!isPostgresEnabled()) {
+    const u = users.get(userId);
+    if (u?.notification_preferences_json) {
+      return mergeUserNotificationPreferencesJson(u.notification_preferences_json);
+    }
+    const detached = memDetachedEmailPrefs.get(userId);
+    if (detached) return mergeUserNotificationPreferencesJson(detached);
+    return mergeUserNotificationPreferencesJson(null);
+  }
+  const rows = await query<{ notification_preferences: unknown }>(
+    `SELECT notification_preferences FROM users WHERE id = $1`,
+    [userId],
+  );
+  return mergeUserNotificationPreferencesJson(rows[0]?.notification_preferences ?? null);
+}
+
+export async function patchUserNotificationPreferencesJsonAsync(
+  userId: string,
+  patch: Partial<Pick<UserNotificationPreferencesJson, "email_enabled" | "email_types" | "email_locale">>,
+): Promise<UserNotificationPreferencesJson> {
+  const current = await getUserNotificationPreferencesJsonAsync(userId);
+  const next: UserNotificationPreferencesJson = {
+    email_enabled: patch.email_enabled !== undefined ? patch.email_enabled : current.email_enabled,
+    email_types: patch.email_types !== undefined ? patch.email_types : current.email_types,
+    email_locale: patch.email_locale !== undefined ? patch.email_locale : current.email_locale,
+  };
+  const now = nowIso();
+  if (!isPostgresEnabled()) {
+    const u = users.get(userId);
+    if (u) {
+      users.set(userId, { ...u, notification_preferences_json: next, updated_at: now });
+    } else {
+      memDetachedEmailPrefs.set(userId, next);
+    }
+    return next;
+  }
+  await query(
+    `UPDATE users SET notification_preferences = $2::jsonb, updated_at = $3 WHERE id = $1`,
+    [userId, JSON.stringify(next), now],
+  );
+  return next;
+}
+
 export function resetAuthStore(): void {
   users.clear();
   refreshTokensByValue.clear();
+  memDetachedEmailPrefs.clear();
 }

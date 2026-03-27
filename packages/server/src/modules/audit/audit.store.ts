@@ -263,6 +263,46 @@ export const getAuditEventByIdAsync = async (eventId: string): Promise<AuditEven
   return rows[0] ?? null;
 };
 
+const AGENT_HISTORY_EVENT_TYPES = [
+  "invocation.completed",
+  "invocation.pending_confirmation",
+  "invocation.confirmed",
+] as const;
+
+/** Distinct human user actor_ids that recently interacted with an agent (for upheld-report notifications). */
+export const listDistinctUserActorIdsForAgentAsync = async (
+  agentId: string,
+  opts?: { lookbackDays?: number; limit?: number },
+): Promise<string[]> => {
+  const lookbackDays = Math.min(365, Math.max(1, opts?.lookbackDays ?? 90));
+  const limit = Math.min(5000, Math.max(1, opts?.limit ?? 500));
+  if (!isPostgresEnabled()) {
+    const cutoff = Date.now() - lookbackDays * 86_400_000;
+    const seen = new Set<string>();
+    for (const e of auditEvents) {
+      if (e.agent_id !== agentId || e.actor_type !== "user") continue;
+      if (!AGENT_HISTORY_EVENT_TYPES.includes(e.event_type as (typeof AGENT_HISTORY_EVENT_TYPES)[number])) {
+        continue;
+      }
+      if (Date.parse(e.created_at) < cutoff) continue;
+      seen.add(e.actor_id);
+      if (seen.size >= limit) break;
+    }
+    return [...seen];
+  }
+  const rows = await query<{ actor_id: string }>(
+    `SELECT DISTINCT actor_id
+     FROM audit_events
+     WHERE agent_id = $1
+       AND actor_type = 'user'
+       AND event_type = ANY($2::text[])
+       AND created_at >= NOW() - ($3 * INTERVAL '1 day')
+     LIMIT $4`,
+    [agentId, [...AGENT_HISTORY_EVENT_TYPES], lookbackDays, limit],
+  );
+  return rows.map((r) => r.actor_id);
+};
+
 export const resetAuditStore = (): void => {
   auditEvents.length = 0;
 };

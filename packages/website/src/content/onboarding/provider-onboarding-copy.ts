@@ -157,16 +157,16 @@ const COPY: Record<Locale, ProviderOnboardingCopy> = {
     },
     submit: {
       heading: "Submit for listing",
-      body: "Submit your Agent for review. Once approved, it will appear in the public directory and users can invoke it.",
+      body: "Submit your Agent for review. Once approved, it will appear in the public Agent Hub and users can invoke it.",
       back: "Back",
       submitting: "Submitting…",
       cta: "Submit for review",
     },
     complete: {
       heading: "Agent submitted",
-      body: "Your Agent is now pending review. Once active, it will appear in the directory. You can manage your Agents from the app.",
+      body: "Your Agent is now pending review. Once active, it will appear in the Agent Hub. You can manage your Agents from the app.",
       continueApp: "Continue to app",
-      browseDirectory: "Browse directory",
+      browseDirectory: "Browse Agent Hub",
     },
     errors: {
       invalidResponse: "Invalid response from server.",
@@ -183,7 +183,7 @@ const COPY: Record<Locale, ProviderOnboardingCopy> = {
     stepProgress: (c, t) => `第 ${c} 步，共 ${t} 步`,
     welcome: {
       heading: "將你的 Agent 接入 GaiaLynk",
-      body: "一次性註冊 A2A 端點。完成連通性檢查與測試調用後，使用者即可在目錄中發現並調用你的 Agent。",
+      body: "一次性註冊 A2A 端點。完成連通性檢查與測試調用後，使用者即可在智能體中心發現並調用你的 Agent。",
       next: "下一步",
     },
     form: {
@@ -237,16 +237,16 @@ const COPY: Record<Locale, ProviderOnboardingCopy> = {
     },
     submit: {
       heading: "提交上架審核",
-      body: "提交 Agent 以供審核。通過後將出現在公開目錄，使用者即可調用。",
+      body: "提交 Agent 以供審核。通過後將出現在公開智能體中心，使用者即可調用。",
       back: "返回",
       submitting: "提交中…",
       cta: "提交審核",
     },
     complete: {
       heading: "Agent 已提交",
-      body: "你的 Agent 正在等待審核。上線後將出現在目錄中，你可在應用內管理 Agent。",
+      body: "你的 Agent 正在等待審核。上線後將出現在智能體中心，你可在應用內管理 Agent。",
       continueApp: "進入應用",
-      browseDirectory: "瀏覽目錄",
+      browseDirectory: "瀏覽智能體中心",
     },
     errors: {
       invalidResponse: "伺服器回應無效。",
@@ -263,7 +263,7 @@ const COPY: Record<Locale, ProviderOnboardingCopy> = {
     stepProgress: (c, t) => `第 ${c} 步，共 ${t} 步`,
     welcome: {
       heading: "将你的 Agent 接入 GaiaLynk",
-      body: "一次性注册 A2A 端点。完成连通性检查与测试调用后，用户即可在目录中发现并调用你的 Agent。",
+      body: "一次性注册 A2A 端点。完成连通性检查与测试调用后，用户即可在智能体中心发现并调用你的 Agent。",
       next: "下一步",
     },
     form: {
@@ -317,16 +317,16 @@ const COPY: Record<Locale, ProviderOnboardingCopy> = {
     },
     submit: {
       heading: "提交上架审核",
-      body: "提交 Agent 以供审核。通过后将出现在公开目录，用户即可调用。",
+      body: "提交 Agent 以供审核。通过后将出现在公开智能体中心，用户即可调用。",
       back: "返回",
       submitting: "提交中…",
       cta: "提交审核",
     },
     complete: {
       heading: "Agent 已提交",
-      body: "你的 Agent 正在等待审核。上线后将出现在目录中，你可在应用内管理 Agent。",
+      body: "你的 Agent 正在等待审核。上线后将出现在智能体中心，你可在应用内管理 Agent。",
       continueApp: "进入应用",
-      browseDirectory: "浏览目录",
+      browseDirectory: "浏览智能体中心",
     },
     errors: {
       invalidResponse: "服务器响应无效。",

@@ -18,7 +18,12 @@ describe("T-5.3 Auth API", () => {
     expect(data.access_token).toBeDefined();
     expect(data.refresh_token).toBeDefined();
     expect(data.expires_in).toBeGreaterThan(0);
-    expect(data.user).toEqual({ id: expect.any(String), email: "user@example.com", role: "consumer" });
+    expect(data.user).toMatchObject({
+      id: expect.any(String),
+      email: "user@example.com",
+      role: "consumer",
+      default_space_id: expect.any(String),
+    });
   });
 
   it("POST /api/v1/auth/register with role returns that role", async () => {

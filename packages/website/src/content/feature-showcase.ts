@@ -1,6 +1,6 @@
 /**
  * T-6.2 特性展示区域（alma.now 风格）文案。
- * 五区块：智能对话 / Agent 准入 / Agent 市场 / 自动化任务 / 执行链路；三语完整。
+ * 五区块：智能对话 / Agent 准入 / 智能体中心（Agent Hub）/ 自动化任务 / 执行链路；三语完整。
  */
 
 import type { Locale } from "@/lib/i18n/locales";
@@ -25,110 +25,110 @@ export type FeatureShowcaseContent = {
 
 const FEATURE_SHOWCASE: Record<Locale, FeatureShowcaseContent> = {
   en: {
-    sectionTitle: "Product at a glance",
+    sectionTitle: "What it feels like in the product",
     sectionSubtitle: "Each capability shown with the real interface—screenshot or high-fidelity mockup.",
     blocks: [
       {
         id: "chat",
-        title: "Beautiful Chat Interface",
+        title: "Chat-shaped collaboration",
         description:
-          "Talk to multiple verified Agents in one thread. Messages, risk confirmations, and receipts live in the same flow—no context switching.",
+          "People and agents share one thread. Confirmations before sensitive steps and reviewable records stay in the same conversation.",
       },
       {
         id: "trust",
-        title: "Verified Agents, Trust as Policy",
+        title: "Runtime rules and signals",
         description:
-          "Every Agent is identity-verified, capability-declared, and reputation-scored. High-risk actions trigger approval; malicious Agents stay out.",
+          "Listed agents carry the trust signals the product exposes; high-impact steps can pause for confirmation. This is governance and quality signals—not a claim that every third-party codebase was audited.",
       },
       {
         id: "marketplace",
-        title: "Agent Marketplace",
+        title: "Agent Hub",
         description:
-          "Browse the directory of verified Agents. See status, reputation, and capabilities at a glance—enable with one click.",
+          "Use agents published on the platform from the Agent Hub—no self-deployment required to start. Pick listed agents, see grading and labels, then run them in chat.",
       },
       {
         id: "automation",
-        title: "Recurring Automation",
+        title: "Orchestration and recurring work",
         description:
-          "Set up tasks once and let the platform run them on a schedule. Policy and human review still apply to every run.",
+          "Turn repeatable work into scheduled or orchestrated runs. Runtime rules and confirmation still apply on every execution.",
       },
       {
         id: "evidence",
-        title: "Evidence by Default",
+        title: "Reviewable execution records",
         description:
-          "Every invocation produces a signed receipt. Audit timelines link decisions, reviews, and outcomes so you can prove what happened.",
+          "Runs leave receipts and history you can trace—so teams can align on what executed and what was confirmed.",
       },
     ],
   },
   "zh-Hant": {
-    sectionTitle: "產品一覽",
+    sectionTitle: "產品裡的體驗輪廓",
     sectionSubtitle: "每個能力均以真實介面截圖或高保真 Mockup 呈現。",
     blocks: [
       {
         id: "chat",
-        title: "優雅的對話介面",
+        title: "對話形態協作",
         description:
-          "在單一對話中與多個經過驗證的 Agent 協作。訊息、風險確認與收據同處一脈，無需切換情境。",
+          "人與智能體共用同一對話。敏感步驟前之確認與可供查閱之紀錄留在同一脈絡。",
       },
       {
         id: "trust",
-        title: "經過驗證的 Agent，策略即信任",
+        title: "執行當下規則與訊號",
         description:
-          "每個 Agent 均經身份驗證、能力聲明與信譽評分。高風險操作觸發人工審批，惡意 Agent 被擋在門外。",
+          "已列示智能體帶有產品揭露之信任訊號；高影響步驟可暫停徵求確認。此為治理與品質訊號，並非宣稱已審閱所有第三方原始碼。",
       },
       {
         id: "marketplace",
-        title: "Agent 目錄",
+        title: "智能體中心",
         description:
-          "瀏覽經過驗證的 Agent 目錄，一眼看清狀態、信譽與能力，一鍵啟用。",
+          "選用平台上已上架智能體，無需先行自建部署。於中心查看分級與標籤，再在對話內調用。",
       },
       {
         id: "automation",
-        title: "訂閱與自動化",
+        title: "編排與週期性工作",
         description:
-          "一次設定任務，由平台按排程執行。每次執行仍受策略與人工審批約束。",
+          "將可重複工作轉為排程或編排執行；每次執行仍受運行時規則與確認約束。",
       },
       {
         id: "evidence",
-        title: "預設即有證據",
+        title: "可覆核的執行紀錄",
         description:
-          "每次調用產生可驗證簽名收據。審計時間軸串起決策、審批與結果，可證明發生了什麼。",
+          "執行留下收據與歷程，團隊可對齊實際跑了什麼、何時經人確認。",
       },
     ],
   },
   "zh-Hans": {
-    sectionTitle: "产品一览",
+    sectionTitle: "产品里的体验轮廓",
     sectionSubtitle: "每个能力均以真实界面截图或高保真 Mockup 呈现。",
     blocks: [
       {
         id: "chat",
-        title: "优雅的对话界面",
+        title: "对话形态协作",
         description:
-          "在单一对话中与多个经过验证的 Agent 协作。消息、风险确认与收据同处一脉，无需切换情境。",
+          "人与智能体共用同一会话。敏感步骤前的确认与可供查阅的记录留在同一语境。",
       },
       {
         id: "trust",
-        title: "经过验证的 Agent，策略即信任",
+        title: "执行当下规则与信号",
         description:
-          "每个 Agent 均经身份验证、能力声明与信誉评分。高风险操作触发人工审批，恶意 Agent 被挡在门外。",
+          "已列示智能体带有产品披露之信任信号；高影响步骤可暂停征求确认。此为治理与质量信号，并非宣称已审阅所有第三方源代码。",
       },
       {
         id: "marketplace",
-        title: "Agent 目录",
+        title: "智能体中心",
         description:
-          "浏览经过验证的 Agent 目录，一眼看清状态、信誉与能力，一键启用。",
+          "选用平台上已上架智能体，无需先行自建部署。在中心查看分级与标签，再于会话内调用。",
       },
       {
         id: "automation",
-        title: "订阅与自动化",
+        title: "编排与周期性工作",
         description:
-          "一次设定任务，由平台按排程执行。每次执行仍受策略与人工审批约束。",
+          "将可重复工作转为排程或编排执行；每次执行仍受运行时规则与确认约束。",
       },
       {
         id: "evidence",
-        title: "默认即有证据",
+        title: "可复核的执行记录",
         description:
-          "每次调用产生可验证签名收据。审计时间轴串起决策、审批与结果，可证明发生了什么。",
+          "执行留下收据与历程，团队可对齐实际跑了什么、何时经人确认。",
       },
     ],
   },

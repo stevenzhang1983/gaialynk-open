@@ -1,7 +1,10 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
+import { decryptConnectorSecret, encryptConnectorSecret } from "./token-crypto";
 
 type ScopeLevel = "directory" | "application" | "action";
+
+export type ConnectorType = "local" | "cloud_saas";
 
 export interface ConnectorAuthorization {
   id: string;
@@ -14,6 +17,29 @@ export interface ConnectorAuthorization {
   status: "active" | "revoked";
   created_at: string;
   updated_at: string;
+  connector_type: ConnectorType;
+  provider: string | null;
+  oauth_expires_at: string | null;
+  /** Notion workspace name (or other SaaS display), optional */
+  oauth_workspace_name: string | null;
+}
+
+const cloudOAuthTokensMem = new Map<string, { access: string; refresh: string | null }>();
+
+const AUTH_SELECT = `id, user_id, device_id, connector, scope_level, scope_value, expires_at::text, status, created_at::text, updated_at::text,
+       COALESCE(connector_type, 'local') AS connector_type, provider, oauth_expires_at::text, oauth_workspace_name`;
+
+function mapAuthRow(
+  r: ConnectorAuthorization & { device_id?: string | null; oauth_expires_at?: string | null },
+): ConnectorAuthorization {
+  return {
+    ...r,
+    device_id: r.device_id ?? null,
+    connector_type: (r.connector_type ?? "local") as ConnectorType,
+    provider: r.provider ?? null,
+    oauth_expires_at: r.oauth_expires_at ?? null,
+    oauth_workspace_name: r.oauth_workspace_name ?? null,
+  };
 }
 
 export interface LocalActionReceipt {
@@ -59,12 +85,16 @@ export const createConnectorAuthorizationAsync = async (input: {
     status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    connector_type: "local",
+    provider: null,
+    oauth_expires_at: null,
+    oauth_workspace_name: null,
   };
   if (isPostgresEnabled()) {
     await query(
       `INSERT INTO connector_authorizations
-       (id, user_id, device_id, connector, scope_level, scope_value, expires_at, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       (id, user_id, device_id, connector, scope_level, scope_value, expires_at, status, created_at, updated_at, connector_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'local')`,
       [
         authorization.id,
         authorization.user_id,
@@ -84,6 +114,124 @@ export const createConnectorAuthorizationAsync = async (input: {
   return authorization;
 };
 
+export async function insertCloudSaasConnectorAuthorizationAsync(input: {
+  userId: string;
+  connector: string;
+  provider: string;
+  scopeLevel: ScopeLevel;
+  scopeValue: string;
+  accessToken: string;
+  refreshToken: string | null;
+  oauthExpiresAt: string | null;
+  oauthWorkspaceName?: string | null;
+}): Promise<ConnectorAuthorization> {
+  const now = Date.now();
+  const createdAt = new Date(now).toISOString();
+  const expiresAt = new Date(now + 365 * 24 * 60 * 60 * 1000).toISOString();
+  const authorization: ConnectorAuthorization = {
+    id: randomUUID(),
+    user_id: input.userId,
+    device_id: null,
+    connector: input.connector,
+    scope_level: input.scopeLevel,
+    scope_value: input.scopeValue,
+    expires_at: expiresAt,
+    status: "active",
+    created_at: createdAt,
+    updated_at: createdAt,
+    connector_type: "cloud_saas",
+    provider: input.provider,
+    oauth_expires_at: input.oauthExpiresAt,
+    oauth_workspace_name: input.oauthWorkspaceName ?? null,
+  };
+
+  if (isPostgresEnabled()) {
+    const accessEnc = encryptConnectorSecret(input.accessToken);
+    const refreshEnc = input.refreshToken ? encryptConnectorSecret(input.refreshToken) : null;
+    await query(
+      `INSERT INTO connector_authorizations
+       (id, user_id, device_id, connector, scope_level, scope_value, expires_at, status, created_at, updated_at,
+        connector_type, provider, oauth_access_token_encrypted, oauth_refresh_token_encrypted, oauth_expires_at,
+        oauth_workspace_name)
+       VALUES ($1, $2, NULL, $3, $4, $5, $6, 'active', $7, $8, 'cloud_saas', $9, $10, $11, $12, $13)`,
+      [
+        authorization.id,
+        authorization.user_id,
+        authorization.connector,
+        authorization.scope_level,
+        authorization.scope_value,
+        authorization.expires_at,
+        authorization.created_at,
+        authorization.updated_at,
+        input.provider,
+        accessEnc,
+        refreshEnc,
+        input.oauthExpiresAt,
+        authorization.oauth_workspace_name,
+      ],
+    );
+  } else {
+    authorizations.set(authorization.id, authorization);
+    cloudOAuthTokensMem.set(authorization.id, { access: input.accessToken, refresh: input.refreshToken });
+  }
+  return authorization;
+}
+
+export async function updateCloudConnectorOAuthTokensAsync(
+  authorizationId: string,
+  tokens: { accessToken: string; refreshToken: string | null; oauthExpiresAt: string | null },
+): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  if (isPostgresEnabled()) {
+    const accessEnc = encryptConnectorSecret(tokens.accessToken);
+    const refreshEnc = tokens.refreshToken ? encryptConnectorSecret(tokens.refreshToken) : null;
+    await query(
+      `UPDATE connector_authorizations SET
+        oauth_access_token_encrypted = $2,
+        oauth_refresh_token_encrypted = $3,
+        oauth_expires_at = $4,
+        updated_at = $5
+       WHERE id = $1`,
+      [authorizationId, accessEnc, refreshEnc, tokens.oauthExpiresAt, updatedAt],
+    );
+  } else {
+    cloudOAuthTokensMem.set(authorizationId, {
+      access: tokens.accessToken,
+      refresh: tokens.refreshToken,
+    });
+    const a = authorizations.get(authorizationId);
+    if (a) {
+      authorizations.set(authorizationId, { ...a, oauth_expires_at: tokens.oauthExpiresAt, updated_at: updatedAt });
+    }
+  }
+}
+
+export async function loadCloudOAuthTokensAsync(
+  authorizationId: string,
+): Promise<{ accessToken: string; refreshToken: string | null } | null> {
+  if (isPostgresEnabled()) {
+    const rows = await query<{
+      oauth_access_token_encrypted: string | null;
+      oauth_refresh_token_encrypted: string | null;
+    }>(
+      `SELECT oauth_access_token_encrypted, oauth_refresh_token_encrypted
+       FROM connector_authorizations WHERE id = $1`,
+      [authorizationId],
+    );
+    const r = rows[0];
+    if (!r?.oauth_access_token_encrypted) return null;
+    return {
+      accessToken: decryptConnectorSecret(r.oauth_access_token_encrypted),
+      refreshToken: r.oauth_refresh_token_encrypted
+        ? decryptConnectorSecret(r.oauth_refresh_token_encrypted)
+        : null,
+    };
+  }
+  const m = cloudOAuthTokensMem.get(authorizationId);
+  if (!m) return null;
+  return { accessToken: m.access, refreshToken: m.refresh };
+}
+
 export const listConnectorAuthorizationsByUserIdAsync = async (input: {
   userId: string;
   deviceId?: string | null;
@@ -93,24 +241,24 @@ export const listConnectorAuthorizationsByUserIdAsync = async (input: {
   if (isPostgresEnabled()) {
     if (input.deviceId != null && input.deviceId !== "") {
       const rows = await query<ConnectorAuthorization & { device_id: string | null }>(
-        `SELECT id, user_id, device_id, connector, scope_level, scope_value, expires_at::text, status, created_at::text, updated_at::text
+        `SELECT ${AUTH_SELECT}
          FROM connector_authorizations
          WHERE user_id = $1 AND device_id = $2
          ORDER BY created_at DESC
          LIMIT $3`,
         [input.userId, input.deviceId, limit],
       );
-      return rows;
+      return rows.map(mapAuthRow);
     }
     const rows = await query<ConnectorAuthorization & { device_id: string | null }>(
-      `SELECT id, user_id, device_id, connector, scope_level, scope_value, expires_at::text, status, created_at::text, updated_at::text
+      `SELECT ${AUTH_SELECT}
        FROM connector_authorizations
        WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT $2`,
       [input.userId, limit],
     );
-    return rows;
+    return rows.map(mapAuthRow);
   }
   return [...authorizations.values()]
     .filter(
@@ -152,12 +300,13 @@ export const getConnectorAuthorizationByIdAsync = async (
 ): Promise<ConnectorAuthorization | null> => {
   if (isPostgresEnabled()) {
     const rows = await query<ConnectorAuthorization & { device_id: string | null }>(
-      `SELECT id, user_id, device_id, connector, scope_level, scope_value, expires_at::text, status, created_at::text, updated_at::text
+      `SELECT ${AUTH_SELECT}
        FROM connector_authorizations
        WHERE id = $1`,
       [authorizationId],
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    return row ? mapAuthRow(row) : null;
   }
   return authorizations.get(authorizationId) ?? null;
 };
@@ -170,10 +319,11 @@ export const revokeConnectorAuthorizationAsync = async (
       `UPDATE connector_authorizations
        SET status = 'revoked', updated_at = $2
        WHERE id = $1
-       RETURNING id, user_id, device_id, connector, scope_level, scope_value, expires_at::text, status, created_at::text, updated_at::text`,
+       RETURNING ${AUTH_SELECT}`,
       [authorizationId, nowIso()],
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    return row ? mapAuthRow(row) : null;
   }
   const authorization = authorizations.get(authorizationId);
   if (!authorization) return null;
@@ -272,4 +422,5 @@ export const resetConnectorStore = (): void => {
   }
   authorizations.clear();
   receipts.clear();
+  cloudOAuthTokensMem.clear();
 };

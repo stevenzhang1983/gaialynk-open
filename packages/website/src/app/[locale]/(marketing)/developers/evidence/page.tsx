@@ -5,25 +5,26 @@ import type { Locale } from "@/lib/i18n/locales";
 
 const COPY: Record<Locale, { title: string; description: string; back: string; seoTitle: string; seoDescription: string }> = {
   en: {
-    title: "A2A L3 evidence (developer view)",
-    description: "Policy hit, reason codes, receipt refs, and signature digest for audit and replay.",
+    title: "Developer view: policy hit and record digest",
+    description:
+      "For integrators: rule outcomes, reason codes, record references, and signature material—supporting audit and replay workflows.",
     back: "Back to Developers",
-    seoTitle: "A2A L3 evidence - GaiaLynk Agent IM",
-    seoDescription: "Evidence layer for A2A visualization: policy, reason codes, receipts.",
+    seoTitle: "Developer evidence view - GaiaLynk",
+    seoDescription: "Rule outcomes, reason codes, record references, and signature material for audit and replay.",
   },
   "zh-Hant": {
-    title: "A2A L3 證據（開發者視圖）",
-    description: "策略命中、reason codes、收據引用與簽名摘要，供審計與回放。",
+    title: "開發者視圖：規則命中與紀錄摘要",
+    description: "供接入方查閱：規則結果、原因碼、紀錄引用與簽名材料，支援稽核與回放流程。",
     back: "返回開發者",
-    seoTitle: "A2A L3 證據 - GaiaLynk Agent IM",
-    seoDescription: "A2A 可視化證據層：策略、reason codes、收據。",
+    seoTitle: "開發者證據視圖 - GaiaLynk",
+    seoDescription: "規則結果、原因碼、紀錄引用與簽名材料，支援稽核與回放。",
   },
   "zh-Hans": {
-    title: "A2A L3 证据（开发者视图）",
-    description: "策略命中、reason codes、收据引用与签名摘要，供审计与回放。",
+    title: "开发者视图：规则命中与记录摘要",
+    description: "供接入方查阅：规则结果、原因码、记录引用与签名材料，支持审计与回放流程。",
     back: "返回开发者",
-    seoTitle: "A2A L3 证据 - GaiaLynk Agent IM",
-    seoDescription: "A2A 可视化证据层：策略、reason codes、收据。",
+    seoTitle: "开发者证据视图 - GaiaLynk",
+    seoDescription: "规则结果、原因码、记录引用与签名材料，支持审计与回放。",
   },
 };
 

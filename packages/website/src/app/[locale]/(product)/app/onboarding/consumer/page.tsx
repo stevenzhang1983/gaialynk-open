@@ -4,8 +4,8 @@ import { isSupportedLocale } from "@/lib/i18n/locales";
 import type { Locale } from "@/lib/i18n/locales";
 
 /**
- * T-4.7 Consumer 新用户引导：欢迎 → 推荐 Agent → 首条消息（Mock）→ 结果与收据 → 进入主界面。
- * Query `return_url`：引导结束后「Continue to app」与 Skip 的目标（须为同 locale 站内路径）。
+ * W-9 Consumer 首启：Hub（可选目标 + 开始对话/浏览 Agent）→ 至多 3 步浏览路径（推荐 → 首条 Mock → 结果并入主路径）；「开始对话」直去 Chat 并预填首条。
+ * Query `return_url`：Skip / Continue 的目标（须为同 locale 站内路径）。
  */
 export default async function ConsumerOnboardingPage({
   params,

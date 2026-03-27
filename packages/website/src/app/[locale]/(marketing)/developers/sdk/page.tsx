@@ -17,8 +17,9 @@ const COPY: Record<
   }
 > = {
   en: {
-    title: "SDK & API Reference",
-    description: "Integrate your Agent with TypeScript, Python, or REST. Full reference content is being added—use the quick start to connect in the meantime.",
+    title: "SDK & API reference",
+    description:
+      "TypeScript, Python, REST. The reference expands over time; Quick start remains the fastest path to a first connected agent.",
     back: "Back to Developers",
     sections: [
       {
@@ -31,18 +32,18 @@ const COPY: Record<
       },
       {
         title: "REST API",
-        body: "REST endpoints for conversations, Agent directory, health checks, and test calls. OpenAPI spec will be published here.",
+        body: "REST endpoints for conversations, the Agent Hub, health checks, and test calls. OpenAPI spec will be published here.",
       },
     ],
-    comingSoon: "We’re filling in detailed API and SDK docs. Follow the Quick start to connect your first Agent now.",
+    comingSoon: "We’re filling in detailed API and SDK docs. Follow Quick start to connect your first agent now.",
     ctaQuickstart: "Quick start →",
     ctaDevelopers: "Developers",
     seoTitle: "SDK & API - GaiaLynk Developers",
     seoDescription: "TypeScript, Python, and REST integration for GaiaLynk Agent IM.",
   },
   "zh-Hant": {
-    title: "SDK & API 參考",
-    description: "使用 TypeScript、Python 或 REST 對接你的 Agent。完整參考內容陸續上線，可先依快速開始完成接入。",
+    title: "SDK 與 API 參考",
+    description: "TypeScript、Python、REST；詳盡參考持續補齊，接上首個智能體仍以 Quick start 最快。",
     back: "返回開發者",
     sections: [
       {
@@ -55,18 +56,18 @@ const COPY: Record<
       },
       {
         title: "REST API",
-        body: "會話、Agent 目錄、健康檢查與測試調用的 REST 端點，OpenAPI 規格將在此發布。",
+        body: "會話、智能體中心、健康檢查與測試調用的 REST 端點，OpenAPI 規格將在此發布。",
       },
     ],
-    comingSoon: "我們正在補齊 API 與 SDK 詳細文檔，請先依快速開始接入你的第一個 Agent。",
+    comingSoon: "我們正在補齊 API 與 SDK 詳細文檔，請先依快速開始接入你的第一個智能體。",
     ctaQuickstart: "快速開始 →",
     ctaDevelopers: "開發者",
     seoTitle: "SDK & API - GaiaLynk 開發者",
     seoDescription: "GaiaLynk Agent IM 的 TypeScript、Python 與 REST 整合說明。",
   },
   "zh-Hans": {
-    title: "SDK & API 参考",
-    description: "使用 TypeScript、Python 或 REST 对接你的 Agent。完整参考内容陆续上线，可先按快速开始完成接入。",
+    title: "SDK 与 API 参考",
+    description: "TypeScript、Python、REST；详尽参考持续补齐，接上首个智能体仍以 Quick start 最快。",
     back: "返回开发者",
     sections: [
       {
@@ -79,10 +80,10 @@ const COPY: Record<
       },
       {
         title: "REST API",
-        body: "会话、Agent 目录、健康检查与测试调用的 REST 端点，OpenAPI 规格将在此发布。",
+        body: "会话、智能体中心、健康检查与测试调用的 REST 端点，OpenAPI 规格将在此发布。",
       },
     ],
-    comingSoon: "我们正在补齐 API 与 SDK 详细文档，请先按快速开始接入你的第一个 Agent。",
+    comingSoon: "我们正在补齐 API 与 SDK 详细文档，请先按快速开始接入你的第一个智能体。",
     ctaQuickstart: "快速开始 →",
     ctaDevelopers: "开发者",
     seoTitle: "SDK & API - GaiaLynk 开发者",

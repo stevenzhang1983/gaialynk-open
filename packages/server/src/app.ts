@@ -4,16 +4,23 @@ import { z } from "zod";
 import {
   addParticipantAsync,
   appendMessageAsync,
+  conversationHasUserParticipantAsync,
   createConversationAsync,
   deleteConversationAsync,
+  conversationHasAgentParticipantAsync,
   getConversationDetailAsync,
+  getConversationSummaryAsync,
   listConversations,
   listMessagesAsync,
   type ListConversationsResult,
   type Message,
   resetConversationStore,
+  updateConversationAsync,
+  upsertConversationUserPrefsAsync,
 } from "./modules/conversation/conversation.store";
-import { publish as publishMessageStream, subscribe as subscribeMessageStream } from "./modules/conversation/message-stream";
+import { extractMentionTargets } from "./modules/conversation/mention-utils";
+import { publishConversationRealtime } from "./modules/conversation/conversation-realtime";
+import { subscribe as subscribeMessageStream } from "./modules/conversation/message-stream";
 import {
   createDelegationTicketAsync,
   getDelegationTicketByIdAsync,
@@ -35,6 +42,13 @@ import {
   getAgentDetailEnrichedAsync,
   getAgentStatsAsync,
 } from "./modules/directory/agent-directory.service";
+import { registerDirectoryRankingRoutes } from "./modules/directory/directory-ranking.router";
+import {
+  emitProductEventAsync,
+  recordConversationCreatedForFounderAsync,
+  recordSessionInvocationCompletedProductAsync,
+} from "./modules/product-events/product-events.emit";
+import { registerProductEventsRoutes } from "./modules/product-events/product-events.router";
 import {
   agentsListAsArray,
   getAgentByIdAsync,
@@ -44,9 +58,25 @@ import {
   type ListAgentsResult,
   upsertAgentFromNodeAsync,
 } from "./modules/directory/agent.store";
-import { requestAgent } from "./modules/gateway/a2a.gateway";
+import { getBatchAgentRankingMetricsAsync } from "./modules/directory/ranking-metrics.store";
+import {
+  paginateAgentsByCursor,
+  rankAgentsForDirectorySearch,
+  safeFallbackSortAgents,
+  trustBadgeForRanking,
+  trustTieOrder,
+} from "./modules/directory/ranking.service";
+import {
+  AgentDelistedGatewayError,
+  AgentMaintenanceGatewayError,
+  InvocationCapacityFastFailError,
+  InvocationQueueTimeoutError,
+  requestAgent,
+} from "./modules/gateway/a2a.gateway";
+import { sessionInvocationContext } from "./modules/gateway/invocation-context";
 import {
   claimInvocationForProcessingAsync,
+  createCompletedInvocationRecordAsync,
   createPendingInvocationAsync,
   getInvocationByIdAsync,
   listInvocationsAsync,
@@ -54,6 +84,7 @@ import {
   rollbackInvocationProcessingAsync,
   resetInvocationStore,
 } from "./modules/gateway/invocation.store";
+import { getInvocationWithVisibilityAsync } from "./modules/gateway/invocation-receipt-visibility";
 import {
   denyInvocationAsync,
   getDeniedDecisionAsync,
@@ -115,11 +146,24 @@ import {
   submitAgentRunFeedbackAsync,
 } from "./modules/feedback/agent-run-feedback.store";
 import {
+  createAgentUserReportAsync,
+  getAgentUserReportByIdAsync,
+  upholdAgentUserReportAsync,
+} from "./modules/feedback/agent-user-report.store";
+import { listAgentRetestQueueAsync } from "./modules/feedback/agent-retest-queue.store";
+import {
+  applyAgentReportUpheldSideEffectsAsync,
+  maybeEnqueueRetestAfterFeedbackAsync,
+} from "./modules/feedback/reputation-loop.service";
+import { resolveUserFacingSummaryForInvocationAsync } from "./modules/trust/invocation-user-facing";
+import {
   getNotificationPreferencesAsync,
   listNotificationEventsAsync,
   recordNotificationEventAsync,
   setNotificationPreferencesAsync,
 } from "./modules/notifications/notification.store";
+import { notifyReviewRequiredAsync } from "./modules/notifications/notification-triggers";
+import { registerNotificationCenterRoutes } from "./modules/notifications/notification.router";
 import {
   AskRoutingError,
   buildAskVisualization,
@@ -152,6 +196,19 @@ import {
   getDisputeByIdAsync,
   resetDisputeStore,
 } from "./modules/disputes/dispute.store";
+import { registerCloudProxyRoutes } from "./modules/connectors/cloud-proxy/cloud-proxy.router";
+import { registerDesktopConnectorRoutes } from "./modules/connectors/desktop/desktop-connector.router";
+import {
+  continueOrchestrationAfterInvocationConfirmAsync,
+  maybeDetachOrchestrationAbortOnTerminalAsync,
+} from "./modules/orchestration/orchestration.engine";
+import { registerOrchestrationRoutes } from "./modules/orchestration/orchestration.router";
+import { resetOrchestrationStore } from "./modules/orchestration/orchestration.store";
+import {
+  buildUploadExcerptForAgentAsync,
+  resetConnectorUploadStore,
+} from "./modules/connectors/connector-upload.store";
+import { resetExternalActionReceiptStore } from "./modules/connectors/external-action-receipt.store";
 import {
   createConnectorAuthorizationAsync,
   executeLocalActionAsync,
@@ -182,7 +239,7 @@ import {
   getQuotaStatusAsync,
   resetQuotaStore,
 } from "./modules/usage/quota.store";
-import { evaluateTrustDecision } from "./modules/trust/trust.engine";
+import { evaluateTrustDecision, type TrustDecision } from "./modules/trust/trust.engine";
 import { evaluateDataBoundaryPolicy } from "./modules/trust/data-boundary.policy";
 import {
   getRiskDisclaimerForCategory,
@@ -193,8 +250,33 @@ import {
   parseActorFromHeaders,
   type ActorContext,
 } from "./infra/identity/actor-context";
+import { consumeRateLimitSlots, getRateLimitInvocationPerHour, resetRateLimiterInMemory } from "./infra/rate-limiter";
+import { enforceMessagePostRateLimit, rateLimitMiddleware } from "./middleware/rate-limit.middleware";
+import { registerModerationRoutes } from "./modules/moderation/moderation.router";
+import { resetMessageModerationStore } from "./modules/moderation/message-moderation.store";
+import { verifyAccessToken } from "./modules/auth/jwt";
 import { registerAuthRoutes } from "./modules/auth/auth.routes";
-import { resetAuthStore } from "./modules/auth/user.store";
+import {
+  getUserByIdAsync,
+  getUserNotificationPreferencesJsonAsync,
+  patchUserNotificationPreferencesJsonAsync,
+  resetAuthStore,
+} from "./modules/auth/user.store";
+import { resetPresenceStore } from "./modules/realtime/presence.store";
+import { resetDesktopExecuteRuntime } from "./modules/connectors/desktop/desktop-execute.runtime";
+import { resetDesktopWebSocketRegistry } from "./modules/realtime/desktop-ws.registry";
+import { resetWebSocketRegistry } from "./modules/realtime/ws.registry";
+import { registerSpaceRoutes } from "./modules/spaces/space.routes";
+import { resetSpaceInvitationStore } from "./modules/spaces/space-invitation.store";
+import {
+  delegatingUserCanAuthorizeAgentInvite,
+  forbiddenMessageForAction,
+  forbiddenUnlessSpaceRbac,
+  rbacForbiddenJson,
+  rbacReasonCodeForAction,
+  spaceRoleAllows,
+} from "./modules/spaces/rbac.middleware";
+import { getMemberRoleAsync, userIsMemberOfSpaceAsync, resetSpaceStore } from "./modules/spaces/space.store";
 import { registerAgentProviderRoutes } from "./modules/directory/agent-provider.routes";
 
 const conversationTopologyEnum = z.enum(["T1", "T2", "T3", "T4", "T5"]);
@@ -204,10 +286,32 @@ const riskLevelEnum = z.enum(["low", "medium", "high", "critical"]);
 
 const createConversationSchema = z.object({
   title: z.string().min(1).max(255),
+  space_id: z.string().uuid().optional(),
   conversation_topology: conversationTopologyEnum.optional(),
   authorization_mode: authorizationModeEnum.optional(),
   visibility_mode: visibilityModeEnum.optional(),
   risk_level: riskLevelEnum.optional(),
+});
+
+const patchConversationSchema = z
+  .object({
+    state: z.enum(["active", "archived", "closed"]).optional(),
+    title: z.string().min(1).max(255).optional(),
+    pinned: z.boolean().optional(),
+    starred: z.boolean().optional(),
+  })
+  .refine(
+    (b) =>
+      b.state !== undefined ||
+      b.title !== undefined ||
+      b.pinned !== undefined ||
+      b.starred !== undefined,
+    { message: "empty patch" },
+  );
+
+const addConversationUserParticipantSchema = z.object({
+  user_id: z.string().uuid(),
+  role: z.enum(["member", "admin", "readonly"]).default("member"),
 });
 
 const registerAgentSchema = z.object({
@@ -228,6 +332,8 @@ const registerAgentSchema = z.object({
 
 const joinAgentSchema = z.object({
   agent_id: z.string().min(1),
+  /** E-11: required when trusted actor is `agent`; must be owner/admin in Space. */
+  delegating_user_id: z.string().uuid().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -237,10 +343,12 @@ const sendMessageSchema = z.object({
   mentions: z.array(z.string().min(1)).max(20).optional(),
   target_agent_ids: z.array(z.string().min(1)).optional(),
   delegation_ticket_id: z.string().uuid().optional(),
+  file_ref_id: z.string().uuid().optional(),
 });
 
 const confirmInvocationSchema = z.object({
   approver_id: z.string().min(1),
+  user_decision_reason: z.string().min(1).max(500).optional(),
 });
 
 const createInvitationSchema = z.object({
@@ -257,6 +365,7 @@ const acceptInvitationSchema = z.object({
 
 const reviewQueueApproveSchema = z.object({
   approver_id: z.string().min(1),
+  user_decision_reason: z.string().min(1).max(500).optional(),
 });
 
 const reviewQueueDenySchema = z.object({
@@ -400,11 +509,38 @@ const agentRunFeedbackSchema = z.object({
   speed: z.number().min(1).max(5),
   stability: z.number().min(1).max(5),
   meets_expectation: z.number().min(1).max(5),
+  usefulness: z.enum(["helpful", "not_helpful", "neutral"]).optional(),
+  reason_code: z.string().min(1).max(64).optional(),
 });
+
+const agentUserReportBodySchema = z.object({
+  reporter_id: z.string().min(1),
+  reason_code: z.string().min(1).max(64),
+  detail: z.string().max(2000).optional(),
+});
+
+const upholdAgentUserReportSchema = z.object({
+  arbitrator_id: z.string().min(1),
+});
+
+const emailNotificationTypeSchema = z.enum([
+  "task_completed",
+  "human_review_required",
+  "quota_warning",
+  "agent_status_changed",
+  "connector_expired",
+  "space_invitation",
+]);
 
 const notificationPreferencesSchema = z.object({
   channels: z.array(z.enum(["in_app", "email"])).min(1).max(2).optional(),
   strategy: z.enum(["only_exceptions", "all_runs"]).optional(),
+  quiet_hours_start: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  quiet_hours_end: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  quiet_hours_timezone: z.string().min(1).max(64).nullable().optional(),
+  email_enabled: z.boolean().optional(),
+  email_types: z.array(emailNotificationTypeSchema).min(1).optional(),
+  email_locale: z.enum(["zh", "en", "ja"]).optional(),
 });
 
 const preflightCheckSchema = z.object({
@@ -618,6 +754,8 @@ const executeLocalActionSchema = z.object({
   risk_level: z.enum(["low", "medium", "high", "critical"]),
   confirmed: z.boolean().optional(),
   params_summary: z.record(z.string(), z.unknown()).optional(),
+  space_id: z.string().uuid().optional(),
+  conversation_id: z.string().uuid().optional(),
 });
 
 const toDecisionEventType = (
@@ -690,7 +828,18 @@ const resetAllStores = (): void => {
   resetUserTaskStore();
   resetDisputeStore();
   resetConnectorStore();
+  resetExternalActionReceiptStore();
+  resetConnectorUploadStore();
+  resetSpaceInvitationStore();
+  resetSpaceStore();
   resetAuthStore();
+  resetWebSocketRegistry();
+  resetDesktopWebSocketRegistry();
+  resetDesktopExecuteRuntime();
+  resetPresenceStore();
+  resetOrchestrationStore();
+  resetRateLimiterInMemory();
+  resetMessageModerationStore();
 };
 
 const escapeCsv = (value: string): string => {
@@ -761,7 +910,62 @@ const forbiddenResponse = (
     403,
   );
 
+function getOptionalJwtUserIdFromRequest(c: {
+  req: { header: (name: string) => string | undefined };
+}): string | undefined {
+  const auth = c.req.header("Authorization")?.trim();
+  const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!bearer) return undefined;
+  const p = verifyAccessToken(bearer);
+  return p?.sub;
+}
+
+async function enforceSpaceConversationAccess(
+  c: {
+    req: { header: (name: string) => string | undefined };
+    json: (body: unknown, status: number) => Response;
+  },
+  spaceId: string | null | undefined,
+): Promise<Response | null> {
+  if (!spaceId) return null;
+  const uid = getOptionalJwtUserIdFromRequest(c);
+  if (!uid) {
+    return c.json(
+      {
+        error: {
+          code: "unauthorized",
+          message: "此会话属于 Space，请先使用 Bearer 登录后再访问。",
+        },
+      },
+      401,
+    );
+  }
+  const ok = await userIsMemberOfSpaceAsync(spaceId, uid);
+  if (!ok) {
+    return c.json(
+      { error: { code: "forbidden", message: "你不是该 Space 成员，无法访问此会话。" } },
+      403,
+    );
+  }
+  return null;
+}
+
 type AppVariables = { actor?: ActorContext };
+
+/** W-4 / E-9: attach `trust_badge` to directory list items (aligned with ranking metrics). */
+async function attachTrustBadgesToAgents(agents: Agent[]): Promise<Array<Agent & { trust_badge: string }>> {
+  if (agents.length === 0) return [];
+  let metrics: Awaited<ReturnType<typeof getBatchAgentRankingMetricsAsync>> = {};
+  try {
+    metrics = await getBatchAgentRankingMetricsAsync(agents.map((a) => a.id));
+  } catch {
+    metrics = {};
+  }
+  return agents.map((a) => ({
+    ...a,
+    trust_badge: trustBadgeForRanking(a, metrics[a.id]),
+  }));
+}
 
 export const createApp = (): Hono<{ Variables: AppVariables }> => {
   resetAllStores();
@@ -797,12 +1001,30 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     );
   });
 
-  // 1.1 Unified identity: parse actor from headers; body/query actor_id is deprecated (see delegation routes).
+  // 1.1 Unified identity: gateway headers first; else Bearer JWT sub as trusted user actor (E-1).
   app.use("/api/*", async (c, next) => {
-    const actor = parseActorFromHeaders(c.req.raw.headers);
-    c.set(ACTOR_CONTEXT_KEY, actor ?? undefined);
+    const headerActor = parseActorFromHeaders(c.req.raw.headers);
+    if (headerActor) {
+      c.set(ACTOR_CONTEXT_KEY, headerActor);
+    } else {
+      const auth = c.req.header("Authorization")?.trim();
+      const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+      const payload = bearer ? verifyAccessToken(bearer) : null;
+      if (payload) {
+        c.set(ACTOR_CONTEXT_KEY, {
+          id: payload.sub,
+          role: payload.role,
+          actor_type: "human",
+          fromTrustedSource: true,
+        });
+      } else {
+        c.set(ACTOR_CONTEXT_KEY, undefined);
+      }
+    }
     await next();
   });
+
+  app.use("/api/*", rateLimitMiddleware());
 
   // 2.2 Health check for app and critical dependencies (Launch Closure 2.2).
   app.get("/api/v1/health", async (c) => {
@@ -885,26 +1107,95 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.post("/api/v1/conversations", async (c) => {
     const payload = createConversationSchema.parse(await c.req.json());
+    const jwtUser = getOptionalJwtUserIdFromRequest(c);
+    if (payload.space_id) {
+      if (!jwtUser) {
+        return c.json(
+          { error: { code: "unauthorized", message: "绑定 Space 的会话需要 Bearer 登录后创建。" } },
+          401,
+        );
+      }
+      const member = await userIsMemberOfSpaceAsync(payload.space_id, jwtUser);
+      if (!member) {
+        return c.json({ error: { code: "forbidden", message: "你不是该 Space 成员，无法在此 Space 创建会话。" } }, 403);
+      }
+    }
     const conversation = await createConversationAsync({
       title: payload.title,
+      space_id: payload.space_id ?? null,
       conversation_topology: payload.conversation_topology,
       authorization_mode: payload.authorization_mode,
       visibility_mode: payload.visibility_mode,
       risk_level: payload.risk_level,
     });
-
+    if (payload.space_id && jwtUser) {
+      await addParticipantAsync({
+        conversationId: conversation.id,
+        participantType: "user",
+        participantId: jwtUser,
+        role: "admin",
+      });
+    }
+    if (jwtUser) {
+      void recordConversationCreatedForFounderAsync({
+        creatorUserId: jwtUser,
+        conversationId: conversation.id,
+        spaceId: conversation.space_id ?? null,
+      });
+    }
     return c.json({ data: conversation }, 201);
   });
 
   app.get("/api/v1/conversations", async (c) => {
+    const spaceIdFilter = c.req.query("space_id")?.trim();
+    if (spaceIdFilter) {
+      const jwtUser = getOptionalJwtUserIdFromRequest(c);
+      if (!jwtUser) {
+        return c.json(
+          { error: { code: "unauthorized", message: "按 Space 筛选会话需要 Bearer 登录。" } },
+          401,
+        );
+      }
+      const member = await userIsMemberOfSpaceAsync(spaceIdFilter, jwtUser);
+      if (!member) {
+        return c.json({ error: { code: "forbidden", message: "你不是该 Space 成员。" } }, 403);
+      }
+    }
     const cursor = c.req.query("cursor") ?? undefined;
     const limitRaw = c.req.query("limit");
     const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
     const sort = (c.req.query("sort") as "created_at:desc" | "created_at:asc") ?? undefined;
+    const statesParam = c.req.query("states")?.trim();
+    const statesParsed =
+      statesParam
+        ?.split(",")
+        .map((s) => s.trim())
+        .filter((s): s is "active" | "archived" | "closed" =>
+          s === "active" || s === "archived" || s === "closed",
+        ) ?? undefined;
+    const jwtUserForPrefs = getOptionalJwtUserIdFromRequest(c);
     const opts =
-      cursor !== undefined || limit !== undefined || sort !== undefined
-        ? { cursor, limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined, sort }
-        : undefined;
+      cursor !== undefined ||
+      limit !== undefined ||
+      sort !== undefined ||
+      spaceIdFilter ||
+      statesParsed?.length ||
+      jwtUserForPrefs
+        ? {
+            cursor,
+            limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined,
+            sort,
+            ...(spaceIdFilter ? { space_id: spaceIdFilter } : {}),
+            ...(statesParsed?.length ? { states: statesParsed } : {}),
+            ...(jwtUserForPrefs ? { prefsForUserId: jwtUserForPrefs } : {}),
+          }
+        : spaceIdFilter || statesParsed?.length || jwtUserForPrefs
+          ? {
+              ...(spaceIdFilter ? { space_id: spaceIdFilter } : {}),
+              ...(statesParsed?.length ? { states: statesParsed } : {}),
+              ...(jwtUserForPrefs ? { prefsForUserId: jwtUserForPrefs } : {}),
+            }
+          : undefined;
     const result = await listConversations(opts);
     if (Array.isArray(result)) {
       return c.json({ data: result }, 200);
@@ -922,12 +1213,76 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     if (!detail) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
+    const denied = await enforceSpaceConversationAccess(c, detail.conversation.space_id);
+    if (denied) return denied;
 
     return c.json({ data: detail }, 200);
   });
 
+  app.patch("/api/v1/conversations/:id", async (c) => {
+    const conversationId = c.req.param("id");
+    const body = patchConversationSchema.parse(await c.req.json());
+    const summary = await getConversationSummaryAsync(conversationId);
+    if (!summary) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const denied = await enforceSpaceConversationAccess(c, summary.space_id);
+    if (denied) {
+      return denied;
+    }
+
+    if (body.state !== undefined || body.title !== undefined) {
+      const updated = await updateConversationAsync(conversationId, {
+        state: body.state,
+        title: body.title,
+      });
+      if (!updated) {
+        return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+      }
+    }
+
+    let prefs: { pinned_at: string | null; starred: boolean } | undefined;
+    if (body.pinned !== undefined || body.starred !== undefined) {
+      const jwtUser = getOptionalJwtUserIdFromRequest(c);
+      if (!jwtUser) {
+        return c.json(
+          { error: { code: "unauthorized", message: "置顶或标星需要登录。" } },
+          401,
+        );
+      }
+      const ok = await conversationHasUserParticipantAsync(conversationId, jwtUser);
+      if (!ok) {
+        return c.json({ error: { code: "forbidden", message: "你不是该会话参与者。" } }, 403);
+      }
+      prefs = await upsertConversationUserPrefsAsync(jwtUser, conversationId, {
+        pinned: body.pinned,
+        starred: body.starred,
+      });
+    }
+
+    const detail = await getConversationDetailAsync(conversationId);
+    if (!detail) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    return c.json(
+      {
+        data: {
+          conversation: detail.conversation,
+          ...(prefs ? { prefs } : {}),
+        },
+      },
+      200,
+    );
+  });
+
   app.delete("/api/v1/conversations/:id", async (c) => {
     const conversationId = c.req.param("id");
+    const summary = await getConversationSummaryAsync(conversationId);
+    if (!summary) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const denied = await enforceSpaceConversationAccess(c, summary.space_id);
+    if (denied) return denied;
     const deleted = await deleteConversationAsync(conversationId);
     if (!deleted) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
@@ -937,6 +1292,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.get("/api/v1/conversations/:id/messages", async (c) => {
     const conversationId = c.req.param("id");
+    const summary = await getConversationSummaryAsync(conversationId);
+    if (!summary) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const denied = await enforceSpaceConversationAccess(c, summary.space_id);
+    if (denied) return denied;
     const cursor = c.req.query("cursor") ?? undefined;
     const limitRaw = c.req.query("limit");
     const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
@@ -959,6 +1320,8 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     if (!detail) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
+    const denied = await enforceSpaceConversationAccess(c, detail.conversation.space_id);
+    if (denied) return denied;
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
@@ -989,6 +1352,8 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     if (!detail) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
+    const denied = await enforceSpaceConversationAccess(c, detail.conversation.space_id);
+    if (denied) return denied;
 
     const items = [];
     for (const participant of detail.participants) {
@@ -1145,6 +1510,9 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
   });
 
   registerAgentProviderRoutes(app as unknown as import("hono").Hono);
+  registerDirectoryRankingRoutes(app as unknown as import("hono").Hono);
+  registerProductEventsRoutes(app as unknown as import("hono").Hono);
+  registerModerationRoutes(app as unknown as import("hono").Hono);
 
   app.post("/api/v1/agents", async (c) => {
     const payload = registerAgentSchema.parse(await c.req.json());
@@ -1157,7 +1525,11 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const cursor = c.req.query("cursor") ?? undefined;
     const limitRaw = c.req.query("limit");
     const limit = limitRaw != null ? parseInt(limitRaw, 10) : undefined;
-    const sort = (c.req.query("sort") as "created_at:desc" | "created_at:asc") ?? undefined;
+    const sortRaw = c.req.query("sort") as
+      | "created_at:desc"
+      | "created_at:asc"
+      | "relevance_trust:desc"
+      | undefined;
     const search = c.req.query("search")?.trim() ?? undefined;
     const status = (c.req.query("status") as "active" | "deprecated" | "pending_review") ?? undefined;
     const source_origin = (c.req.query("source_origin") as
@@ -1166,10 +1538,52 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       | "connected_node"
       | "vendor") ?? undefined;
     const agent_type = (c.req.query("agent_type") as "logical" | "execution") ?? undefined;
+
+    const relevanceMode =
+      Boolean(search && search.length > 0) &&
+      (sortRaw === undefined || sortRaw === "relevance_trust:desc");
+
+    if (relevanceMode) {
+      const fetchOpts = {
+        search,
+        status,
+        source_origin,
+        agent_type,
+      };
+      let data = agentsListAsArray(await listAgentsAsync(fetchOpts));
+      let rankingMeta: { ranking_fallback?: boolean } = { ranking_fallback: false };
+      try {
+        const metrics = await getBatchAgentRankingMetricsAsync(data.map((a) => a.id));
+        data = rankAgentsForDirectorySearch(data, search!, metrics);
+        data = data.map((a) => ({
+          ...a,
+          trust_badge: trustBadgeForRanking(a, metrics[a.id]),
+        }));
+      } catch {
+        data = safeFallbackSortAgents(data);
+        data = await attachTrustBadgesToAgents(data);
+        rankingMeta = { ranking_fallback: true };
+      }
+      const lim = limit !== undefined && Number.isFinite(limit) ? limit : undefined;
+      if (lim != null) {
+        const page = paginateAgentsByCursor(data, lim, cursor);
+        const meta =
+          page.next_cursor != null
+            ? { next_cursor: page.next_cursor, ...rankingMeta }
+            : { ...rankingMeta };
+        return c.json({ data: page.data, meta }, 200);
+      }
+      return c.json({ data, meta: rankingMeta }, 200);
+    }
+
+    const sort =
+      sortRaw === "relevance_trust:desc"
+        ? ("created_at:desc" as const)
+        : (sortRaw ?? ("created_at:desc" as const));
     const opts =
       cursor !== undefined ||
       limit !== undefined ||
-      sort !== undefined ||
+      sortRaw !== undefined ||
       (search !== undefined && search.length > 0) ||
       status !== undefined ||
       source_origin !== undefined ||
@@ -1186,12 +1600,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         : undefined;
     const result = await listAgentsAsync(opts);
     if (Array.isArray(result)) {
-      return c.json({ data: result }, 200);
+      const data = await attachTrustBadgesToAgents(result);
+      return c.json({ data }, 200);
     }
-    const meta = (result as ListAgentsResult).next_cursor
-      ? { next_cursor: (result as ListAgentsResult).next_cursor }
-      : undefined;
-    return c.json({ data: (result as ListAgentsResult).data, meta }, 200);
+    const listResult = result as ListAgentsResult;
+    const data = await attachTrustBadgesToAgents(listResult.data);
+    const meta = listResult.next_cursor ? { next_cursor: listResult.next_cursor } : undefined;
+    return c.json({ data, meta }, 200);
   });
 
   app.get("/api/v1/agents/recommendations", async (c) => {
@@ -1217,6 +1632,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const maxRank = riskMax ? riskRank(riskMax) : Number.POSITIVE_INFINITY;
 
     const agents = agentsListAsArray(await listAgentsAsync());
+    let recMetrics: Awaited<ReturnType<typeof getBatchAgentRankingMetricsAsync>> = {};
+    try {
+      recMetrics = await getBatchAgentRankingMetricsAsync(agents.map((a) => a.id));
+    } catch {
+      recMetrics = {};
+    }
     const scored = agents
       .map((agent: Agent) => {
         if (agent.capabilities.length === 0) {
@@ -1252,7 +1673,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         };
       })
       .filter((item): item is { agent: Agent; score: number; reason: string } => Boolean(item))
-      .sort((a, b) => b.score - a.score || b.agent.created_at.localeCompare(a.agent.created_at))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const ta = trustTieOrder(trustBadgeForRanking(a.agent, recMetrics[a.agent.id]));
+        const tb = trustTieOrder(trustBadgeForRanking(b.agent, recMetrics[b.agent.id]));
+        if (ta !== tb) return ta - tb;
+        return b.agent.created_at.localeCompare(a.agent.created_at);
+      })
       .slice(0, limit ?? 5)
       .map((item) => ({
         agent: item.agent,
@@ -1288,6 +1715,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
           success_rate: enriched.success_rate,
           risk_level: enriched.risk_level,
           feedback_summary: enriched.feedback_summary,
+          trust_badge: enriched.trust_badge,
         },
       },
       200,
@@ -2233,6 +2661,17 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         400,
       );
     }
+    const exportAuditUid = getOptionalJwtUserIdFromRequest(c);
+    const exportAuditSpaceId = c.req.query("space_id")?.trim();
+    if (exportAuditUid && exportAuditSpaceId) {
+      const denied = await forbiddenUnlessSpaceRbac(
+        c,
+        exportAuditSpaceId,
+        exportAuditUid,
+        "export_audit",
+      );
+      if (denied) return denied;
+    }
     const mode = (parsed.data.mode ?? "real") as VisualizationMode;
     const windowDays = parsed.data.window_days ?? 7;
     const exportData = await getA2AVisualizationL3Export({
@@ -3111,17 +3550,31 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       return forbiddenResponse(c, "Authenticated actor does not match user settings scope.");
     }
     const prefs = await getNotificationPreferencesAsync(userId);
+    const emailPrefs = await getUserNotificationPreferencesJsonAsync(userId);
     if (!prefs) {
       return c.json({
         data: {
           user_id: userId,
           channels: ["in_app"],
           strategy: "only_exceptions",
+          quiet_hours_start: null,
+          quiet_hours_end: null,
+          quiet_hours_timezone: null,
           updated_at: new Date().toISOString(),
+          email_enabled: emailPrefs.email_enabled,
+          email_types: emailPrefs.email_types,
+          email_locale: emailPrefs.email_locale,
         },
       }, 200);
     }
-    return c.json({ data: prefs }, 200);
+    return c.json({
+      data: {
+        ...prefs,
+        email_enabled: emailPrefs.email_enabled,
+        email_types: emailPrefs.email_types,
+        email_locale: emailPrefs.email_locale,
+      },
+    }, 200);
   });
 
   app.patch("/api/v1/users/:id/notification-preferences", async (c) => {
@@ -3134,15 +3587,42 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const prefs = await setNotificationPreferencesAsync(userId, {
       channels: payload.channels,
       strategy: payload.strategy,
+      quiet_hours_start: payload.quiet_hours_start,
+      quiet_hours_end: payload.quiet_hours_end,
+      quiet_hours_timezone: payload.quiet_hours_timezone,
     });
+    const emailPrefs =
+      payload.email_enabled !== undefined ||
+      payload.email_types !== undefined ||
+      payload.email_locale !== undefined
+        ? await patchUserNotificationPreferencesJsonAsync(userId, {
+            email_enabled: payload.email_enabled,
+            email_types: payload.email_types,
+            email_locale: payload.email_locale,
+          })
+        : await getUserNotificationPreferencesJsonAsync(userId);
     await emitAuditEventAsync({
       eventType: "settings.notification_preferences_updated",
       actorType: "user",
       actorId: userId,
-      payload: { user_id: userId, channels: prefs.channels, strategy: prefs.strategy },
+      payload: {
+        user_id: userId,
+        channels: prefs.channels,
+        strategy: prefs.strategy,
+        email_enabled: emailPrefs.email_enabled,
+        email_types: emailPrefs.email_types,
+        email_locale: emailPrefs.email_locale,
+      },
       correlationId: randomUUID(),
     });
-    return c.json({ data: prefs }, 200);
+    return c.json({
+      data: {
+        ...prefs,
+        email_enabled: emailPrefs.email_enabled,
+        email_types: emailPrefs.email_types,
+        email_locale: emailPrefs.email_locale,
+      },
+    }, 200);
   });
 
   app.get("/api/v1/users/:id/notifications", async (c) => {
@@ -3308,6 +3788,20 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     if (!authorization) {
       return c.json({ error: { code: "authorization_not_found", message: "Authorization not found" } }, 404);
     }
+    let triggerSpaceId: string | null | undefined = payload.space_id ?? null;
+    if (!triggerSpaceId && payload.conversation_id) {
+      const cs = await getConversationSummaryAsync(payload.conversation_id);
+      triggerSpaceId = cs?.space_id ?? undefined;
+    }
+    if (triggerSpaceId) {
+      const denied = await forbiddenUnlessSpaceRbac(
+        c,
+        triggerSpaceId,
+        authorization.user_id,
+        "trigger_connector",
+      );
+      if (denied) return denied;
+    }
     if (authorization.status !== "active") {
       await emitAuditEventAsync({
         eventType: "connector.local_action.blocked_revoked",
@@ -3464,9 +3958,142 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     return c.json({ data: receipt }, 200);
   });
 
+  app.post("/api/v1/conversations/:id/participants", async (c) => {
+    const conversationId = c.req.param("id");
+    const detailForPart = await getConversationDetailAsync(conversationId);
+    if (!detailForPart) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const denied = await enforceSpaceConversationAccess(c, detailForPart.conversation.space_id);
+    if (denied) return denied;
+    const jwtUser = getOptionalJwtUserIdFromRequest(c);
+    const payload = addConversationUserParticipantSchema.parse(await c.req.json());
+    if (!jwtUser) {
+      return c.json({ error: { code: "unauthorized", message: "需要 Bearer 登录。" } }, 401);
+    }
+    const hasUserParticipant = detailForPart.participants.some((p) => p.participant_type === "user");
+    if (hasUserParticipant) {
+      const isParticipant = await conversationHasUserParticipantAsync(conversationId, jwtUser);
+      if (!isParticipant) {
+        return c.json({ error: { code: "forbidden", message: "仅会话参与者可将他人加入会话。" } }, 403);
+      }
+    }
+    const added = await addParticipantAsync({
+      conversationId,
+      participantType: "user",
+      participantId: payload.user_id,
+      role: payload.role,
+    });
+    if (!added) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const joiner = await getUserByIdAsync(payload.user_id);
+    const label = joiner?.email ?? payload.user_id;
+    await appendMessageAsync({
+      conversationId,
+      senderType: "system",
+      senderId: "system",
+      text: `${label} 加入了会话`,
+    });
+    const cid = c.req.header("X-Correlation-Id")?.trim() || randomUUID();
+    await emitAuditEventAsync({
+      eventType: "conversation.participant_added",
+      conversationId,
+      actorType: "user",
+      actorId: jwtUser,
+      payload: { participant_user_id: payload.user_id, role: payload.role },
+      correlationId: cid,
+    });
+    return c.json({ data: added }, 201);
+  });
+
   app.post("/api/v1/conversations/:id/agents", async (c) => {
     const conversationId = c.req.param("id");
     const payload = joinAgentSchema.parse(await c.req.json());
+    const summary = await getConversationSummaryAsync(conversationId);
+    if (!summary) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const actorCtx = c.get(ACTOR_CONTEXT_KEY) as ActorContext | undefined;
+    const isTrustedAgent = Boolean(actorCtx?.fromTrustedSource && actorCtx.actor_type === "agent");
+
+    if (isTrustedAgent && !summary.space_id) {
+      return c.json(
+        { error: { code: "invalid_input", message: "Agent 代邀请仅适用于归属 Space 的会话。" } },
+        400,
+      );
+    }
+
+    if (!isTrustedAgent) {
+      const denied = await enforceSpaceConversationAccess(c, summary.space_id);
+      if (denied) return denied;
+    }
+
+    if (summary.space_id) {
+      if (isTrustedAgent) {
+        if (!payload.delegating_user_id) {
+          return c.json(
+            {
+              error: {
+                code: "invalid_input",
+                message: "Agent 代邀请须提供 delegating_user_id（授权用户 UUID）。",
+              },
+            },
+            400,
+          );
+        }
+        const delegatingRole = await getMemberRoleAsync(summary.space_id, payload.delegating_user_id);
+        if (!delegatingUserCanAuthorizeAgentInvite(delegatingRole)) {
+          const cid = c.req.header("X-Correlation-Id")?.trim() || randomUUID();
+          await emitAuditEventAsync({
+            eventType: "agent.invitation_denied_policy",
+            conversationId,
+            agentId: actorCtx!.id,
+            actorType: "agent",
+            actorId: actorCtx!.id,
+            payload: {
+              delegating_user_id: payload.delegating_user_id,
+              target_agent_id: payload.agent_id,
+              space_id: summary.space_id,
+            },
+            correlationId: cid,
+          });
+          return rbacForbiddenJson(c, "grant_agent_invite_permission");
+        }
+        const agentCallerOk = await conversationHasAgentParticipantAsync(conversationId, actorCtx!.id);
+        if (!agentCallerOk) {
+          return c.json(
+            {
+              error: {
+                code: "forbidden",
+                message: "调用方 Agent 须已是该会话参与者。",
+                details: { reason_code: "agent_invite_caller_not_participant" },
+              },
+            },
+            403,
+          );
+        }
+      } else {
+        const jwtUser = getOptionalJwtUserIdFromRequest(c);
+        if (!jwtUser) {
+          return c.json({ error: { code: "unauthorized", message: "需要 Bearer 登录。" } }, 401);
+        }
+        const spaceRole = await getMemberRoleAsync(summary.space_id, jwtUser);
+        if (!spaceRoleAllows(spaceRole, "join_agent_to_conversation")) {
+          return c.json(
+            {
+              error: {
+                code: "forbidden",
+                message: forbiddenMessageForAction("join_agent_to_conversation"),
+                details: { reason_code: rbacReasonCodeForAction("join_agent_to_conversation") },
+              },
+            },
+            403,
+          );
+        }
+      }
+    }
+
     const agent = await getAgentByIdAsync(payload.agent_id);
 
     if (!agent) {
@@ -3484,11 +4111,38 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
 
+    const jwtActor = getOptionalJwtUserIdFromRequest(c);
+    if (jwtActor) {
+      const actorUser = await getUserByIdAsync(jwtActor);
+      const who = actorUser?.email ?? jwtActor;
+      await appendMessageAsync({
+        conversationId,
+        senderType: "system",
+        senderId: "system",
+        text: `${who} 邀请了 Agent「${agent.name}」`,
+      });
+    } else if (isTrustedAgent && payload.delegating_user_id) {
+      const delegatingUser = await getUserByIdAsync(payload.delegating_user_id);
+      const who = delegatingUser?.email ?? payload.delegating_user_id;
+      await appendMessageAsync({
+        conversationId,
+        senderType: "system",
+        senderId: "system",
+        text: `${who}（代授权）邀请了 Agent「${agent.name}」`,
+      });
+    }
+
     return c.json({ data: addedParticipant }, 201);
   });
 
   app.post("/api/v1/conversations/:id/invitations", async (c) => {
     const conversationId = c.req.param("id");
+    const sum = await getConversationSummaryAsync(conversationId);
+    if (!sum) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const invDeny = await enforceSpaceConversationAccess(c, sum.space_id);
+    if (invDeny) return invDeny;
     const payload = createInvitationSchema.parse(await c.req.json());
     const invitation = await createInvitationAsync({
       conversationId,
@@ -3508,6 +4162,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.get("/api/v1/conversations/:id/invitations", async (c) => {
     const conversationId = c.req.param("id");
+    const sum = await getConversationSummaryAsync(conversationId);
+    if (!sum) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const invDeny = await enforceSpaceConversationAccess(c, sum.space_id);
+    if (invDeny) return invDeny;
     const invitations = await listInvitationsByConversationAsync(conversationId);
     if (!invitations) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
@@ -3519,6 +4179,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
   app.post("/api/v1/conversations/:id/invitations/:invitationId/accept", async (c) => {
     const conversationId = c.req.param("id");
     const invitationId = c.req.param("invitationId");
+    const sum = await getConversationSummaryAsync(conversationId);
+    if (!sum) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const accDeny = await enforceSpaceConversationAccess(c, sum.space_id);
+    if (accDeny) return accDeny;
     const payload = acceptInvitationSchema.parse(await c.req.json());
     const invitation = await getInvitationAsync(conversationId, invitationId);
 
@@ -3560,7 +4226,42 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
   app.post("/api/v1/conversations/:id/messages", async (c) => {
     const conversationId = c.req.param("id");
     const payload = sendMessageSchema.parse(await c.req.json());
+    const msgRl = await enforceMessagePostRateLimit(c, payload.sender_id);
+    if (msgRl) {
+      return msgRl;
+    }
     const correlationId = randomUUID();
+    const msgSummary = await getConversationSummaryAsync(conversationId);
+    if (!msgSummary) {
+      return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
+    }
+    const msgDeny = await enforceSpaceConversationAccess(c, msgSummary.space_id);
+    if (msgDeny) return msgDeny;
+    if (msgSummary.state === "archived" || msgSummary.state === "closed") {
+      return c.json(
+        {
+          error: {
+            code: "conversation_read_only",
+            message: "会话已归档或已关闭，无法发送新消息。请先恢复为进行中。",
+          },
+        },
+        409,
+      );
+    }
+    if (msgSummary.space_id) {
+      const uid = getOptionalJwtUserIdFromRequest(c);
+      if (!uid || uid !== payload.sender_id) {
+        return c.json(
+          {
+            error: {
+              code: "forbidden",
+              message: "Space 会话中消息的 sender_id 必须与当前 Bearer 登录用户一致。",
+            },
+          },
+          403,
+        );
+      }
+    }
     const ingestBoundaryDecision = evaluateDataBoundaryPolicy({ text: payload.text });
 
     if (ingestBoundaryDecision.decision === "deny") {
@@ -3589,6 +4290,23 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     }
     const sanitizedText = ingestBoundaryDecision.sanitized_text ?? payload.text;
 
+    let agentUserText = sanitizedText;
+    if (payload.file_ref_id) {
+      const fileExcerpt = await buildUploadExcerptForAgentAsync(payload.file_ref_id, payload.sender_id);
+      if (!fileExcerpt.ok) {
+        return c.json(
+          {
+            error: {
+              code: "file_ref_invalid",
+              message: "file_ref_id 无效或不属于当前发送者",
+            },
+          },
+          400,
+        );
+      }
+      agentUserText = `${sanitizedText}\n\n--- 附件 ${fileExcerpt.filename} ---\n${fileExcerpt.excerpt}`;
+    }
+
     const userMessage = await appendMessageAsync({
       conversationId,
       senderType: "user",
@@ -3596,12 +4314,39 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       text: sanitizedText,
       threadId: payload.thread_id,
       mentions: payload.mentions,
+      fileRefId: payload.file_ref_id,
     });
 
     if (!userMessage) {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
-    publishMessageStream(conversationId, userMessage);
+    publishConversationRealtime(conversationId, userMessage);
+
+    const mentionTargets = extractMentionTargets(sanitizedText);
+    const senderLower = payload.sender_id.toLowerCase();
+    for (const uid of mentionTargets.userIds) {
+      if (uid === senderLower) continue;
+      await recordNotificationEventAsync({
+        user_id: uid,
+        event_type: "conversation.mention",
+        payload: {
+          conversation_id: conversationId,
+          message_id: userMessage.id,
+          kind: "user",
+        },
+      });
+    }
+    for (const aid of mentionTargets.agentIds) {
+      await emitAuditEventAsync({
+        eventType: "conversation.agent_mentioned",
+        conversationId,
+        agentId: aid,
+        actorType: "user",
+        actorId: payload.sender_id,
+        payload: { message_id: userMessage.id },
+        correlationId,
+      });
+    }
 
     const detail = await getConversationDetailAsync(conversationId);
     if (!detail) {
@@ -3681,10 +4426,34 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         );
       }
 
-      const pendingInvocations: Array<{ agent_id: string; invocation_id: string }> = [];
+      const maxInv = getRateLimitInvocationPerHour();
+      const invRlMulti = await consumeRateLimitSlots(
+        `inv:user:hourly:${payload.sender_id}`,
+        maxInv,
+        3600,
+        targetIds.length,
+      );
+      if (!invRlMulti.allowed) {
+        c.header("Retry-After", String(Math.max(1, Math.ceil(invRlMulti.retryAfterMs / 1000))));
+        return c.json(
+          { error: { code: "rate_limit_exceeded", message: "操作过频，请稍后再试" } },
+          429,
+        );
+      }
+
+      const pendingInvocations: Array<{
+        agent_id: string;
+        invocation_id: string;
+        trust_decision: TrustDecision;
+      }> = [];
       const completedReceipts: Array<{ agent_id: string; receipt_id: string }> = [];
       const deniedAgents: Array<{ agent_id: string; reason_codes: string[] }> = [];
-      const failedAgents: Array<{ agent_id: string; reason: string }> = [];
+      const failedAgents: Array<{
+        agent_id: string;
+        reason: string;
+        error_code?: string;
+        user_facing_message?: { zh: string; en: string; ja: string };
+      }> = [];
       let t5RoundSummary: string | null = null;
 
       for (const targetAgentId of targetIds) {
@@ -3741,7 +4510,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             conversationId,
             agentId: agent.id,
             requesterId: payload.sender_id,
-            userText: sanitizedText,
+            userText: agentUserText,
           });
           await emitAuditEventAsync({
             eventType: "invocation.pending_confirmation",
@@ -3756,7 +4525,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             trustDecision,
             correlationId: perAgentCorrelationId,
           });
-          pendingInvocations.push({ agent_id: agent.id, invocation_id: pendingInvocation.id });
+          await notifyReviewRequiredAsync({
+            userId: payload.sender_id,
+            conversationId,
+            invocationId: pendingInvocation.id,
+          });
+          pendingInvocations.push({
+            agent_id: agent.id,
+            invocation_id: pendingInvocation.id,
+            trust_decision: trustDecision,
+          });
           if (delegationTicket) {
             await interruptT5DelegationAsync({
               conversation_id: conversationId,
@@ -3771,6 +4549,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
         if (trustDecision.decision === "deny") {
           deniedAgents.push({ agent_id: agent.id, reason_codes: trustDecision.reason_codes });
+          void emitProductEventAsync({
+            name: "trust.blocked",
+            userId: payload.sender_id,
+            conversationId,
+            payload: { agent_id: agent.id, reason_codes: trustDecision.reason_codes, path: "multi_target" },
+            correlationId: perAgentCorrelationId,
+          });
           if (delegationTicket) {
             await interruptT5DelegationAsync({
               conversation_id: conversationId,
@@ -3784,8 +4569,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         }
 
         let agentMessage: Message | null = null;
+        const runId = randomUUID();
+        const traceId = c.req.header("X-Correlation-Id")?.trim() || correlationId;
+        const invCtx = sessionInvocationContext({
+          gaiaUserId: payload.sender_id,
+          conversationId,
+          runId,
+          traceId,
+        });
         try {
-          const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: sanitizedText });
+          const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: agentUserText });
           if (forwardBoundaryDecision.decision === "deny") {
             await emitAuditEventAsync({
               eventType: "boundary.denied",
@@ -3813,9 +4606,9 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             continue;
           }
           const a2aResponse = await requestAgent({
-            conversationId,
             agent,
-            userText: sanitizedText,
+            userText: agentUserText,
+            context: invCtx,
           });
           if (delegationTicket && t5RoundSummary === null) {
             t5RoundSummary = (a2aResponse.text ?? "").slice(0, 500);
@@ -3826,8 +4619,85 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             senderId: agent.id,
             text: a2aResponse.text,
           });
-          if (agentMessage) publishMessageStream(conversationId, agentMessage);
+          if (agentMessage) publishConversationRealtime(conversationId, agentMessage);
         } catch (error) {
+          if (error instanceof AgentDelistedGatewayError) {
+            await emitAuditEventAsync({
+              eventType: "invocation.denied",
+              conversationId,
+              agentId: agent.id,
+              actorType: "system",
+              actorId: "system",
+              payload: {
+                reason_codes: ["agent_delisted"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: invCtx,
+              },
+              trustDecision,
+              correlationId: perAgentCorrelationId,
+            });
+            failedAgents.push({
+              agent_id: agent.id,
+              reason: error.message,
+              error_code: error.code,
+              user_facing_message: error.user_facing_message,
+            });
+            continue;
+          }
+          if (error instanceof AgentMaintenanceGatewayError) {
+            await emitAuditEventAsync({
+              eventType: "invocation.denied",
+              conversationId,
+              agentId: agent.id,
+              actorType: "system",
+              actorId: "system",
+              payload: {
+                reason_codes: ["agent_maintenance"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: invCtx,
+              },
+              trustDecision,
+              correlationId: perAgentCorrelationId,
+            });
+            failedAgents.push({
+              agent_id: agent.id,
+              reason: error.message,
+              error_code: error.code,
+              user_facing_message: error.user_facing_message,
+            });
+            continue;
+          }
+          if (error instanceof InvocationCapacityFastFailError) {
+            await emitAuditEventAsync({
+              eventType: "invocation.capacity_denied",
+              conversationId,
+              agentId: agent.id,
+              actorType: "system",
+              actorId: "system",
+              payload: {
+                invocation_context: invCtx,
+                estimated_wait_ms: error.estimated_wait_ms,
+              },
+              trustDecision,
+              correlationId: perAgentCorrelationId,
+            });
+            failedAgents.push({ agent_id: agent.id, reason: error.message });
+            continue;
+          }
+          if (error instanceof InvocationQueueTimeoutError) {
+            await emitAuditEventAsync({
+              eventType: "invocation.queue_timeout",
+              conversationId,
+              agentId: agent.id,
+              actorType: "system",
+              actorId: "system",
+              payload: { invocation_context: invCtx, reason: error.message },
+              trustDecision,
+              correlationId: perAgentCorrelationId,
+            });
+            failedAgents.push({ agent_id: agent.id, reason: error.message });
+            continue;
+          }
           const reason = error instanceof Error ? error.message : "unknown_error";
           await emitAuditEventAsync({
             eventType: "invocation.failed",
@@ -3835,7 +4705,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
             agentId: agent.id,
             actorType: "system",
             actorId: "system",
-            payload: { reason },
+            payload: { reason, invocation_context: invCtx },
             trustDecision,
             correlationId: perAgentCorrelationId,
           });
@@ -3855,6 +4725,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
           actorId: agent.id,
           payload: {
             message_id: agentMessage.id,
+            invocation_context: invCtx,
           },
           trustDecision,
           correlationId: perAgentCorrelationId,
@@ -3872,6 +4743,25 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
           },
         });
         completedReceipts.push({ agent_id: agent.id, receipt_id: receipt.id });
+        void recordSessionInvocationCompletedProductAsync({
+          userId: payload.sender_id,
+          conversationId,
+          agentId: agent.id,
+          correlationId: perAgentCorrelationId,
+        });
+      }
+
+      if (completedReceipts.length > 1) {
+        void emitProductEventAsync({
+          name: "agent.invoked_multi_step",
+          userId: payload.sender_id,
+          conversationId,
+          payload: {
+            source: "session_multi_target",
+            agent_count: completedReceipts.length,
+            message_id: userMessage.id,
+          },
+        });
       }
 
       if (pendingInvocations.length > 0) {
@@ -3937,6 +4827,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       );
     }
 
+    const maxInvSingle = getRateLimitInvocationPerHour();
+    const invRlSingle = await consumeRateLimitSlots(`inv:user:hourly:${payload.sender_id}`, maxInvSingle, 3600, 1);
+    if (!invRlSingle.allowed) {
+      c.header("Retry-After", String(Math.max(1, Math.ceil(invRlSingle.retryAfterMs / 1000))));
+      return c.json(
+        { error: { code: "rate_limit_exceeded", message: "操作过频，请稍后再试" } },
+        429,
+      );
+    }
+
     const agent = await getAgentByIdAsync(firstAgentId);
 
     if (!agent) {
@@ -3997,7 +4897,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         conversationId,
         agentId: agent.id,
         requesterId: payload.sender_id,
-        userText: sanitizedText,
+        userText: agentUserText,
       });
 
       await emitAuditEventAsync({
@@ -4012,6 +4912,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         },
         trustDecision,
         correlationId,
+      });
+
+      await notifyReviewRequiredAsync({
+        userId: payload.sender_id,
+        conversationId,
+        invocationId: pendingInvocation.id,
       });
 
       if (delegationTicket) {
@@ -4037,6 +4943,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     }
 
     if (trustDecision.decision === "deny") {
+      void emitProductEventAsync({
+        name: "trust.blocked",
+        userId: payload.sender_id,
+        conversationId,
+        payload: { agent_id: agent.id, reason_codes: trustDecision.reason_codes, path: "single_target" },
+        correlationId,
+      });
       if (delegationTicket) {
         await interruptT5DelegationAsync({
           conversation_id: conversationId,
@@ -4059,8 +4972,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     }
 
     let agentMessage: Message | null = null;
+    const singleRunId = randomUUID();
+    const singleTraceId = c.req.header("X-Correlation-Id")?.trim() || correlationId;
+    const singleInvCtx = sessionInvocationContext({
+      gaiaUserId: payload.sender_id,
+      conversationId,
+      runId: singleRunId,
+      traceId: singleTraceId,
+    });
     try {
-      const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: sanitizedText });
+      const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: agentUserText });
       if (forwardBoundaryDecision.decision === "deny") {
         await emitAuditEventAsync({
           eventType: "boundary.denied",
@@ -4096,9 +5017,9 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         );
       }
       const a2aResponse = await requestAgent({
-        conversationId,
         agent,
-        userText: sanitizedText,
+        userText: agentUserText,
+        context: singleInvCtx,
       });
 
       agentMessage = await appendMessageAsync({
@@ -4107,15 +5028,128 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         senderId: agent.id,
         text: a2aResponse.text,
       });
-      if (agentMessage) publishMessageStream(conversationId, agentMessage);
+      if (agentMessage) publishConversationRealtime(conversationId, agentMessage);
     } catch (error) {
+      if (error instanceof AgentDelistedGatewayError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.denied",
+          conversationId,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            reason_codes: ["agent_delisted"],
+            user_facing_message: error.user_facing_message,
+            invocation_context: singleInvCtx,
+          },
+          trustDecision,
+          correlationId,
+        });
+        return c.json(
+          {
+            error: {
+              code: "agent_delisted",
+              message: error.user_facing_message.zh,
+              details: {
+                reason_codes: ["agent_delisted"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: singleInvCtx,
+              },
+            },
+          },
+          403,
+        );
+      }
+      if (error instanceof AgentMaintenanceGatewayError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.denied",
+          conversationId,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            reason_codes: ["agent_maintenance"],
+            user_facing_message: error.user_facing_message,
+            invocation_context: singleInvCtx,
+          },
+          trustDecision,
+          correlationId,
+        });
+        return c.json(
+          {
+            error: {
+              code: "agent_maintenance",
+              message: error.user_facing_message.zh,
+              details: {
+                reason_codes: ["agent_maintenance"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: singleInvCtx,
+              },
+            },
+          },
+          503,
+        );
+      }
+      if (error instanceof InvocationCapacityFastFailError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.capacity_denied",
+          conversationId,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            invocation_context: singleInvCtx,
+            estimated_wait_ms: error.estimated_wait_ms,
+          },
+          trustDecision,
+          correlationId,
+        });
+        return c.json(
+          {
+            error: {
+              code: "invocation_capacity_exceeded",
+              message: "当前 Agent 并发已满，请稍后重试或选择低负载 Agent",
+              details: {
+                estimated_wait_ms: error.estimated_wait_ms,
+                invocation_context: singleInvCtx,
+              },
+            },
+          },
+          429,
+        );
+      }
+      if (error instanceof InvocationQueueTimeoutError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.queue_timeout",
+          conversationId,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: { invocation_context: singleInvCtx, reason: error.message },
+          trustDecision,
+          correlationId,
+        });
+        return c.json(
+          {
+            error: {
+              code: "invocation_queue_timeout",
+              message: "等待 Agent 执行槽超时，请稍后重试",
+              details: { invocation_context: singleInvCtx },
+            },
+          },
+          504,
+        );
+      }
       await emitAuditEventAsync({
         eventType: "invocation.failed",
         conversationId,
         agentId: agent.id,
         actorType: "system",
         actorId: "system",
-        payload: { reason: error instanceof Error ? error.message : "unknown_error" },
+        payload: {
+          reason: error instanceof Error ? error.message : "unknown_error",
+          invocation_context: singleInvCtx,
+        },
         trustDecision,
         correlationId,
       });
@@ -4135,6 +5169,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       return c.json({ error: { code: "conversation_not_found", message: "Conversation not found" } }, 404);
     }
 
+    const completedInvRecord = await createCompletedInvocationRecordAsync({
+      conversationId,
+      agentId: agent.id,
+      requesterId: payload.sender_id,
+      userText: agentUserText,
+    });
+
     const completedEvent = await emitAuditEventAsync({
       eventType: "invocation.completed",
       conversationId,
@@ -4143,6 +5184,8 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       actorId: agent.id,
       payload: {
         message_id: agentMessage.id,
+        invocation_id: completedInvRecord.id,
+        invocation_context: singleInvCtx,
       },
       trustDecision,
       correlationId,
@@ -4157,6 +5200,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         user_message_id: userMessage.id,
         agent_message_id: agentMessage.id,
       },
+    });
+
+    void recordSessionInvocationCompletedProductAsync({
+      userId: payload.sender_id,
+      conversationId,
+      agentId: agent.id,
+      correlationId,
     });
 
     if (delegationTicket) {
@@ -4176,6 +5226,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         meta: {
           trust_decision: trustDecision,
           receipt_id: receipt.id,
+          invocation_id: completedInvRecord.id,
         },
       },
       201,
@@ -4189,6 +5240,17 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const invocation = await getInvocationByIdAsync(invocationId);
     if (!invocation) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+
+    const invSum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (invSum?.space_id) {
+      const trustDenied = await forbiddenUnlessSpaceRbac(
+        c,
+        invSum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (trustDenied) return trustDenied;
     }
 
     if (invocation.status !== "pending_confirmation") {
@@ -4213,11 +5275,22 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       agentId: agent.id,
       actorType: "user",
       actorId: payload.approver_id,
-      payload: { invocation_id: invocation.id },
+      payload: {
+        invocation_id: invocation.id,
+        ...(payload.user_decision_reason
+          ? { user_decision_reason: payload.user_decision_reason }
+          : {}),
+      },
       correlationId,
     });
 
     let agentMessage: Message | null = null;
+    const confirmInvCtx = sessionInvocationContext({
+      gaiaUserId: payload.approver_id,
+      conversationId: invocation.conversation_id,
+      runId: invocation.id,
+      traceId: correlationId,
+    });
     try {
       const forwardBoundaryDecision = evaluateDataBoundaryPolicy({ text: invocation.user_text });
       if (forwardBoundaryDecision.decision === "deny") {
@@ -4248,9 +5321,9 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         );
       }
       const a2aResponse = await requestAgent({
-        conversationId: invocation.conversation_id,
         agent,
         userText: invocation.user_text,
+        context: confirmInvCtx,
       });
 
       agentMessage = await appendMessageAsync({
@@ -4259,15 +5332,136 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         senderId: agent.id,
         text: a2aResponse.text,
       });
-      if (agentMessage) publishMessageStream(invocation.conversation_id, agentMessage);
+      if (agentMessage) publishConversationRealtime(invocation.conversation_id, agentMessage);
     } catch (error) {
+      if (error instanceof AgentDelistedGatewayError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.denied",
+          conversationId: claimedInvocation.conversation_id,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            reason_codes: ["agent_delisted"],
+            user_facing_message: error.user_facing_message,
+            invocation_context: confirmInvCtx,
+            invocation_id: invocation.id,
+          },
+          correlationId,
+        });
+        await rollbackInvocationProcessingAsync(claimedInvocation.id);
+        return c.json(
+          {
+            error: {
+              code: "agent_delisted",
+              message: error.user_facing_message.zh,
+              details: {
+                reason_codes: ["agent_delisted"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: confirmInvCtx,
+              },
+            },
+          },
+          403,
+        );
+      }
+      if (error instanceof AgentMaintenanceGatewayError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.denied",
+          conversationId: claimedInvocation.conversation_id,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            reason_codes: ["agent_maintenance"],
+            user_facing_message: error.user_facing_message,
+            invocation_context: confirmInvCtx,
+            invocation_id: invocation.id,
+          },
+          correlationId,
+        });
+        await rollbackInvocationProcessingAsync(claimedInvocation.id);
+        return c.json(
+          {
+            error: {
+              code: "agent_maintenance",
+              message: error.user_facing_message.zh,
+              details: {
+                reason_codes: ["agent_maintenance"],
+                user_facing_message: error.user_facing_message,
+                invocation_context: confirmInvCtx,
+              },
+            },
+          },
+          503,
+        );
+      }
+      if (error instanceof InvocationCapacityFastFailError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.capacity_denied",
+          conversationId: claimedInvocation.conversation_id,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            invocation_context: confirmInvCtx,
+            estimated_wait_ms: error.estimated_wait_ms,
+            invocation_id: invocation.id,
+          },
+          correlationId,
+        });
+        await rollbackInvocationProcessingAsync(claimedInvocation.id);
+        return c.json(
+          {
+            error: {
+              code: "invocation_capacity_exceeded",
+              message: "当前 Agent 并发已满，请稍后重试或选择低负载 Agent",
+              details: {
+                estimated_wait_ms: error.estimated_wait_ms,
+                invocation_context: confirmInvCtx,
+              },
+            },
+          },
+          429,
+        );
+      }
+      if (error instanceof InvocationQueueTimeoutError) {
+        await emitAuditEventAsync({
+          eventType: "invocation.queue_timeout",
+          conversationId: claimedInvocation.conversation_id,
+          agentId: agent.id,
+          actorType: "system",
+          actorId: "system",
+          payload: {
+            invocation_context: confirmInvCtx,
+            reason: error.message,
+            invocation_id: invocation.id,
+          },
+          correlationId,
+        });
+        await rollbackInvocationProcessingAsync(claimedInvocation.id);
+        return c.json(
+          {
+            error: {
+              code: "invocation_queue_timeout",
+              message: "等待 Agent 执行槽超时，请稍后重试",
+              details: { invocation_context: confirmInvCtx },
+            },
+          },
+          504,
+        );
+      }
       await emitAuditEventAsync({
         eventType: "invocation.failed",
         conversationId: claimedInvocation.conversation_id,
         agentId: agent.id,
         actorType: "system",
         actorId: "system",
-        payload: { reason: error instanceof Error ? error.message : "unknown_error" },
+        payload: {
+          reason: error instanceof Error ? error.message : "unknown_error",
+          invocation_context: confirmInvCtx,
+          invocation_id: invocation.id,
+        },
         correlationId,
       });
       await rollbackInvocationProcessingAsync(claimedInvocation.id);
@@ -4301,6 +5495,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       payload: {
         invocation_id: invocation.id,
         message_id: agentMessage.id,
+        invocation_context: confirmInvCtx,
       },
       correlationId,
     });
@@ -4314,6 +5509,32 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         message_id: agentMessage.id,
       },
     });
+
+    void emitProductEventAsync({
+      name: "trust.confirmed",
+      userId: payload.approver_id,
+      conversationId: invocation.conversation_id,
+      payload: { invocation_id: invocation.id, agent_id: agent.id },
+      correlationId,
+    });
+    void recordSessionInvocationCompletedProductAsync({
+      userId: invocation.requester_id,
+      conversationId: invocation.conversation_id,
+      agentId: agent.id,
+      correlationId,
+    });
+
+    if (invocation.orchestration_run_id && invocation.orchestration_step_index != null) {
+      await continueOrchestrationAfterInvocationConfirmAsync({
+        runId: invocation.orchestration_run_id,
+        stepIndex: invocation.orchestration_step_index,
+        outputText: agentMessage.content.text,
+        agentId: agent.id,
+        actorId: payload.approver_id,
+        agentMessageId: agentMessage.id,
+      });
+      await maybeDetachOrchestrationAbortOnTerminalAsync(invocation.orchestration_run_id);
+    }
 
     return c.json(
       {
@@ -4362,12 +5583,15 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
 
   app.get("/api/v1/invocations/:id", async (c) => {
     const invocationId = c.req.param("id");
-    const invocation = await getInvocationByIdAsync(invocationId);
-    if (!invocation) {
+    const viewerUserId = getOptionalJwtUserIdFromRequest(c);
+    if (!viewerUserId) {
+      return c.json({ error: { code: "unauthorized", message: "Bearer JWT required" } }, 401);
+    }
+    const data = await getInvocationWithVisibilityAsync(invocationId, viewerUserId);
+    if (!data) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
     }
-
-    return c.json({ data: invocation }, 200);
+    return c.json({ data }, 200);
   });
 
   app.get("/api/v1/review-queue", async (c) => {
@@ -4386,6 +5610,10 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       if (deniedDecision) {
         continue;
       }
+      const user_facing_summary = await resolveUserFacingSummaryForInvocationAsync(
+        invocation.id,
+        invocation.conversation_id,
+      );
       items.push({
         invocation_id: invocation.id,
         conversation_id: invocation.conversation_id,
@@ -4393,6 +5621,7 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         requester_id: invocation.requester_id,
         status: invocation.status,
         created_at: invocation.created_at,
+        user_facing_summary,
       });
     }
     return c.json({ data: items }, 200);
@@ -4408,6 +5637,17 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const invocation = await getInvocationByIdAsync(invocationId);
     if (!invocation) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+
+    const approveSum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (approveSum?.space_id) {
+      const approveDenied = await forbiddenUnlessSpaceRbac(
+        c,
+        approveSum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (approveDenied) return approveDenied;
     }
 
     const deniedDecision = await getDeniedDecisionAsync(invocationId);
@@ -4441,9 +5681,22 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const delegated = await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approver_id: payload.approver_id }),
+      body: JSON.stringify({
+        approver_id: payload.approver_id,
+        ...(payload.user_decision_reason
+          ? { user_decision_reason: payload.user_decision_reason }
+          : {}),
+      }),
     });
     const delegatedBody = await delegated.json();
+    if (delegated.status === 200 && delegatedBody && typeof delegatedBody === "object" && !("error" in delegatedBody)) {
+      void emitProductEventAsync({
+        name: "trust.human_reviewed",
+        userId: payload.approver_id,
+        conversationId: invocation.conversation_id,
+        payload: { action: "approve", invocation_id: invocationId },
+      });
+    }
     return c.json(delegatedBody, delegated.status as 200 | 400 | 404 | 409 | 422 | 502);
   });
 
@@ -4457,6 +5710,17 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const invocation = await getInvocationByIdAsync(invocationId);
     if (!invocation) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+
+    const denySum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (denySum?.space_id) {
+      const denyRbac = await forbiddenUnlessSpaceRbac(
+        c,
+        denySum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (denyRbac) return denyRbac;
     }
 
     const existingDenied = await getDeniedDecisionAsync(invocationId);
@@ -4501,6 +5765,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       },
       correlationId: randomUUID(),
     });
+    void emitProductEventAsync({
+      name: "trust.human_reviewed",
+      userId: payload.approver_id,
+      conversationId: invocation.conversation_id,
+      payload: { action: "deny", invocation_id: invocation.id },
+    });
     return c.json({ data: denied, meta: { idempotent: false } }, 200);
   });
 
@@ -4514,6 +5784,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const invocation = await getInvocationByIdAsync(invocationId);
     if (!invocation) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+    const askSum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (askSum?.space_id) {
+      const askDenied = await forbiddenUnlessSpaceRbac(
+        c,
+        askSum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (askDenied) return askDenied;
     }
     await emitAuditEventAsync({
       eventType: "invocation.ask_more_info",
@@ -4550,6 +5830,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const invocation = await getInvocationByIdAsync(invocationId);
     if (!invocation) {
       return c.json({ error: { code: "invocation_not_found", message: "Invocation not found" } }, 404);
+    }
+    const delSum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (delSum?.space_id) {
+      const delDenied = await forbiddenUnlessSpaceRbac(
+        c,
+        delSum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (delDenied) return delDenied;
     }
     await emitAuditEventAsync({
       eventType: "invocation.delegated",
@@ -4608,7 +5898,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
     const delegated = await app.request(`/api/v1/invocations/${approvalId}/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approver_id: payload.approver_id }),
+      body: JSON.stringify({
+        approver_id: payload.approver_id,
+        ...(payload.user_decision_reason
+          ? { user_decision_reason: payload.user_decision_reason }
+          : {}),
+      }),
     });
     const delegatedBody = await delegated.json();
     return c.json(delegatedBody, delegated.status as 200 | 400 | 404 | 409 | 422 | 502);
@@ -4623,6 +5918,16 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
         { error: { code: "approval_not_found", message: "Approval not found" } },
         404,
       );
+    }
+    const rejSum = await getConversationSummaryAsync(invocation.conversation_id);
+    if (rejSum?.space_id) {
+      const rejDenied = await forbiddenUnlessSpaceRbac(
+        c,
+        rejSum.space_id,
+        payload.approver_id,
+        "approve_high_risk",
+      );
+      if (rejDenied) return rejDenied;
     }
     const existingDenied = await getDeniedDecisionAsync(approvalId);
     if (existingDenied) {
@@ -4729,6 +6034,13 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       speed: payload.speed,
       stability: payload.stability,
       meets_expectation: payload.meets_expectation,
+      usefulness: payload.usefulness,
+      reason_code: payload.reason_code,
+    });
+    const retest = await maybeEnqueueRetestAfterFeedbackAsync({
+      agent_id: payload.agent_id,
+      usefulness: payload.usefulness ?? null,
+      reason_code: payload.reason_code ?? null,
     });
     return c.json(
       {
@@ -4737,9 +6049,80 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
           ask_run_id: feedback.ask_run_id,
           agent_id: feedback.agent_id,
           accepted,
+          retest_enqueued: retest.enqueued,
         },
       },
       accepted ? 201 : 200,
+    );
+  });
+
+  app.get("/api/v1/trust/retest-queue", async (c) => {
+    const trustedActor = c.get(ACTOR_CONTEXT_KEY) as ActorContext | undefined;
+    const actorId = trustedActor?.fromTrustedSource ? trustedActor.id : c.req.query("actor_id")?.trim();
+    if (!actorId || actorId === "") {
+      return c.json(
+        { error: { code: "actor_id_required", message: "X-Actor-Id header or query actor_id is required" } },
+        400,
+      );
+    }
+    const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 50));
+    const rows = await listAgentRetestQueueAsync({ status: "pending", limit });
+    return c.json({ data: rows, meta: { actor_id: actorId } }, 200);
+  });
+
+  app.post("/api/v1/agents/:id/user-reports", async (c) => {
+    const agentId = c.req.param("id");
+    const agent = await getAgentByIdAsync(agentId);
+    if (!agent) {
+      return c.json({ error: { code: "agent_not_found", message: "Agent not found" } }, 404);
+    }
+    const body = agentUserReportBodySchema.parse(await c.req.json());
+    const report = await createAgentUserReportAsync({
+      agent_id: agentId,
+      reporter_id: body.reporter_id,
+      reason_code: body.reason_code,
+      detail: body.detail,
+    });
+    await emitAuditEventAsync({
+      eventType: "trust.agent_report.created",
+      agentId,
+      actorType: "user",
+      actorId: body.reporter_id,
+      payload: { report_id: report.id, reason_code: report.reason_code },
+      correlationId: randomUUID(),
+    });
+    return c.json({ data: report }, 201);
+  });
+
+  app.post("/api/v1/agent-user-reports/:reportId/uphold", async (c) => {
+    const reportId = c.req.param("reportId");
+    const body = upholdAgentUserReportSchema.parse(await c.req.json());
+    if (!body.arbitrator_id.startsWith("ops-") && !body.arbitrator_id.startsWith("reviewer-")) {
+      return c.json(
+        { error: { code: "report_arbitration_forbidden", message: "Arbitration role required" } },
+        403,
+      );
+    }
+    const existing = await getAgentUserReportByIdAsync(reportId);
+    if (!existing) {
+      return c.json({ error: { code: "report_not_found", message: "Report not found" } }, 404);
+    }
+    const upheld = await upholdAgentUserReportAsync(reportId);
+    if (!upheld) {
+      return c.json(
+        { error: { code: "report_not_actionable", message: "Report already resolved" } },
+        409,
+      );
+    }
+    const { notified_user_ids } = await applyAgentReportUpheldSideEffectsAsync(upheld, body.arbitrator_id);
+    return c.json(
+      {
+        data: {
+          report: upheld,
+          notified_user_count: notified_user_ids.length,
+        },
+      },
+      200,
     );
   });
 
@@ -4776,6 +6159,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       cursor,
       limit,
     } = parsed.data;
+    const auditUid = getOptionalJwtUserIdFromRequest(c);
+    const auditSpaceId = c.req.query("space_id")?.trim();
+    if (auditUid && auditSpaceId) {
+      const denied = await forbiddenUnlessSpaceRbac(c, auditSpaceId, auditUid, "export_audit");
+      if (denied) return denied;
+    }
     const result = await listAuditEventsAsync({
       eventType,
       conversationId,
@@ -4824,6 +6213,12 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
       limit,
       sort,
     } = parsed.data;
+    const timelineUid = getOptionalJwtUserIdFromRequest(c);
+    const timelineSpaceId = c.req.query("space_id")?.trim();
+    if (timelineUid && timelineSpaceId) {
+      const denied = await forbiddenUnlessSpaceRbac(c, timelineSpaceId, timelineUid, "export_audit");
+      if (denied) return denied;
+    }
     const sortOrder = sort === "created_at:asc" ? "asc" : "desc";
     const result = await listAuditEventsAsync({
       conversationId,
@@ -5533,6 +6928,11 @@ export const createApp = (): Hono<{ Variables: AppVariables }> => {
   });
 
   registerAuthRoutes(app as unknown as import("hono").Hono);
+  registerSpaceRoutes(app as unknown as import("hono").Hono);
+  registerCloudProxyRoutes(app as unknown as import("hono").Hono);
+  registerDesktopConnectorRoutes(app as unknown as import("hono").Hono);
+  registerOrchestrationRoutes(app as unknown as import("hono").Hono);
+  registerNotificationCenterRoutes(app as unknown as import("hono").Hono);
 
   return app;
 };

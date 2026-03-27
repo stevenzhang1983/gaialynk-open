@@ -13,14 +13,14 @@ type Props = {
 };
 
 /**
- * T-4.7 引导浏览目录：仅展示推荐 Agent，高亮选中项与「Recommended」标签。
+ * T-4.7 引导浏览智能体中心：仅展示推荐 Agent，高亮选中项与「Recommended」标签。
  */
 export function ConsumerBrowseAgentsStep({ copy, agents, selected, onSelect, onNext, onBack }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">{copy.heading}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{copy.body}</p>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">{copy.heading}</h2>
+        <p className="mt-2 max-w-[65ch] text-base leading-relaxed text-muted-foreground">{copy.body}</p>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map((agent) => {

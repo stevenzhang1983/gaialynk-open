@@ -72,3 +72,49 @@ export function getAccessTokenTtlSeconds(): number {
 export function getRefreshTokenTtlSeconds(): number {
   return REFRESH_TTL_SECONDS;
 }
+
+const DESKTOP_DEVICE_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
+
+export interface DesktopDeviceTokenPayload {
+  token_use: "desktop_device";
+  sub: string;
+  device_id: string;
+  iat: number;
+  exp: number;
+}
+
+export function signDesktopDeviceToken(payload: { sub: string; device_id: string }): string {
+  const secret = getSecret();
+  const now = Math.floor(Date.now() / 1000);
+  const full: DesktopDeviceTokenPayload = {
+    token_use: "desktop_device",
+    sub: payload.sub,
+    device_id: payload.device_id,
+    iat: now,
+    exp: now + DESKTOP_DEVICE_TTL_SECONDS,
+  };
+  const headerB64 = base64UrlEncode(JWT_HEADER);
+  const payloadB64 = base64UrlEncode(full);
+  const signature = createHmac("sha256", secret).update(`${headerB64}.${payloadB64}`).digest("base64url");
+  return `${headerB64}.${payloadB64}.${signature}`;
+}
+
+export function verifyDesktopDeviceToken(token: string): DesktopDeviceTokenPayload | null {
+  try {
+    const secret = getSecret();
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const headerB64 = parts[0]!;
+    const payloadB64 = parts[1]!;
+    const sigB64 = parts[2]!;
+    const expectedSig = createHmac("sha256", secret).update(`${headerB64}.${payloadB64}`).digest("base64url");
+    if (expectedSig !== sigB64) return null;
+    const payload = JSON.parse(base64UrlDecode(payloadB64)) as DesktopDeviceTokenPayload;
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now || payload.iat > now) return null;
+    if (payload.token_use !== "desktop_device" || !payload.sub || !payload.device_id) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}

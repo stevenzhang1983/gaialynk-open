@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
 import type { Agent } from "../directory/agent.store";
 import { requestAgent } from "../gateway/a2a.gateway";
+import { sessionInvocationContext } from "../gateway/invocation-context";
 
 export type RoutingMode = "auto" | "manual" | "constrained_auto";
 
@@ -218,10 +219,16 @@ const executeRunAsync = async (
   const startAt = Date.now();
   for (const agent of selectedAgents) {
     try {
+      const askRunId = randomUUID();
       const response = await requestAgent({
-        conversationId: `ask-${session.id}`,
         agent,
         userText: session.request.text,
+        context: sessionInvocationContext({
+          gaiaUserId: `ask:${session.id}`,
+          conversationId: `ask-${session.id}`,
+          runId: askRunId,
+          traceId: askRunId,
+        }),
       });
       const durationMs = Date.now() - startAt;
       timeline.push({ step: `invoke.${agent.id}`, status: "ok", detail: "agent completed" });

@@ -15,7 +15,9 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@gaialynk/shared": ["../shared/src/index.ts"],
+      "@gaialynk/shared/*": ["../shared/src/*"]
     },
     "plugins": [
       {

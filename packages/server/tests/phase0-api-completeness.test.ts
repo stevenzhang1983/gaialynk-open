@@ -108,6 +108,17 @@ describe("Phase0 API completeness", () => {
   it("tracks invocation status from pending_confirmation to completed", async () => {
     const app = createApp();
 
+    const reg = await app.request("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "phase0-invoke@example.com", password: "password123" }),
+    });
+    expect(reg.status).toBe(201);
+    const { access_token, user } = (await reg.json()).data as {
+      access_token: string;
+      user: { id: string };
+    };
+
     const createConversationResponse = await app.request("/api/v1/conversations", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -138,13 +149,16 @@ describe("Phase0 API completeness", () => {
     const messageResponse = await app.request(`/api/v1/conversations/${conversationId}/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sender_id: "user-h", text: "do high operation" }),
+      body: JSON.stringify({ sender_id: user.id, text: "do high operation" }),
     });
     expect(messageResponse.status).toBe(202);
     const messageBody = await messageResponse.json();
     const invocationId = messageBody.meta.invocation_id as string;
 
-    const pendingStatusResponse = await app.request(`/api/v1/invocations/${invocationId}`);
+    const authHeaders = { Authorization: `Bearer ${access_token}` };
+    const pendingStatusResponse = await app.request(`/api/v1/invocations/${invocationId}`, {
+      headers: authHeaders,
+    });
     expect(pendingStatusResponse.status).toBe(200);
     const pendingStatusBody = await pendingStatusResponse.json();
     expect(pendingStatusBody.data.status).toBe("pending_confirmation");
@@ -152,10 +166,12 @@ describe("Phase0 API completeness", () => {
     await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approver_id: "user-h" }),
+      body: JSON.stringify({ approver_id: user.id }),
     });
 
-    const completedStatusResponse = await app.request(`/api/v1/invocations/${invocationId}`);
+    const completedStatusResponse = await app.request(`/api/v1/invocations/${invocationId}`, {
+      headers: authHeaders,
+    });
     expect(completedStatusResponse.status).toBe(200);
     const completedStatusBody = await completedStatusResponse.json();
     expect(completedStatusBody.data.status).toBe("completed");

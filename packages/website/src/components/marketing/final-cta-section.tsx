@@ -5,7 +5,6 @@ export type FinalCtaCopy = {
   heading: string;
   openApp: string;
   startBuilding: string;
-  bookDemo: string;
 };
 
 type FinalCtaSectionProps = {
@@ -14,8 +13,7 @@ type FinalCtaSectionProps = {
 };
 
 /**
- * T-3.7 首页收尾 CTA 区域：准备好了吗？+ Open App / Start Building / Book a Demo。
- * 不包含 Join Waitlist（按 CTO 指令）。
+ * T-3.7 首页收尾 CTA 区域：准备好了吗？+ Open App / Start Building。
  */
 export function FinalCtaSection({ copy, locale }: FinalCtaSectionProps) {
   return (
@@ -31,6 +29,7 @@ export function FinalCtaSection({ copy, locale }: FinalCtaSectionProps) {
       </h2>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <CtaLink
+          primary
           href={`/${locale}/app`}
           eventName="cta_click"
           eventPayload={{
@@ -43,7 +42,6 @@ export function FinalCtaSection({ copy, locale }: FinalCtaSectionProps) {
           {copy.openApp}
         </CtaLink>
         <CtaLink
-          primary
           href={`/${locale}/developers`}
           eventName="cta_click"
           eventPayload={{
@@ -54,18 +52,6 @@ export function FinalCtaSection({ copy, locale }: FinalCtaSectionProps) {
           }}
         >
           {copy.startBuilding}
-        </CtaLink>
-        <CtaLink
-          href={`/${locale}/demo`}
-          eventName="demo_click"
-          eventPayload={{
-            locale,
-            page: "home",
-            referrer: "internal",
-            cta_id: "final_cta_book_demo",
-          }}
-        >
-          {copy.bookDemo}
         </CtaLink>
       </div>
     </section>

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useIdentity } from "@/lib/identity/context";
+import { useSpace } from "@/components/product/space-context";
 
 /**
  * T-4.3 / T-4.2 聊天入口页：无 conversationId 时先创建或取最近会话，再重定向到 /app/chat/[id]。
@@ -11,24 +13,37 @@ export default function ChatPage() {
   const router = useRouter();
   const params = useParams();
   const locale = typeof params?.locale === "string" ? params.locale : "en";
+  const { isAuthenticated } = useIdentity();
+  const { currentSpaceId } = useSpace();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const ensureAndRedirect = useCallback(async () => {
     try {
-      const listRes = await fetch("/api/mainline/conversations?limit=1&sort=created_at:desc", {
-        cache: "no-store",
-      });
+      const spaceQ =
+        isAuthenticated && currentSpaceId
+          ? `&space_id=${encodeURIComponent(currentSpaceId)}`
+          : "";
+      const listRes = await fetch(
+        `/api/mainline/conversations?limit=1&sort=created_at:desc&states=active${spaceQ}`,
+        {
+          cache: "no-store",
+        },
+      );
       const listJson = await listRes.json().catch(() => ({}));
       const list = listJson.data;
       if (Array.isArray(list) && list.length > 0 && list[0].id) {
         router.replace(`/${locale}/app/chat/${list[0].id}`);
         return;
       }
+      const createBody: { title: string; space_id?: string } = { title: "New chat" };
+      if (isAuthenticated && currentSpaceId) {
+        createBody.space_id = currentSpaceId;
+      }
       const createRes = await fetch("/api/mainline/conversations", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: "New chat" }),
+        body: JSON.stringify(createBody),
       });
       const createJson = await createRes.json().catch(() => ({}));
       if (createRes.ok && createJson.data?.id) {
@@ -41,7 +56,7 @@ export default function ChatPage() {
     } finally {
       setLoading(false);
     }
-  }, [locale, router]);
+  }, [locale, router, isAuthenticated, currentSpaceId]);
 
   useEffect(() => {
     ensureAndRedirect();

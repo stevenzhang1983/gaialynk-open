@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useIdentity } from "@/lib/identity/context";
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea, input:not([type="hidden"]), select, [tabindex]:not([tabindex="-1"])';
 
 export type LoginModalProps = {
   open: boolean;
@@ -34,6 +37,8 @@ export function LoginModal({
   const params = useParams();
   const locale = (params?.locale as string) ?? "en";
   const { signInWithPassword } = useIdentity();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,6 +77,43 @@ export function LoginModal({
     onClose();
   }, [onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const t = window.setTimeout(() => emailRef.current?.focus(), 0);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancel();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute("disabled"),
+      );
+      if (nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || (active && !panel.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, handleCancel]);
+
   if (!open) return null;
 
   return (
@@ -81,15 +123,23 @@ export function LoginModal({
       aria-modal="true"
       aria-labelledby="login-modal-title"
     >
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-elevated">
+      <div
+        ref={panelRef}
+        className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-elevated"
+      >
         <h2 id="login-modal-title" className="text-lg font-semibold text-foreground">
           {title}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Sign in with your email to continue. Your session is required for sending messages.
         </p>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 space-y-3"
+          aria-describedby={error ? "login-modal-error" : undefined}
+        >
           <input
+            ref={emailRef}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -107,7 +157,11 @@ export function LoginModal({
             autoComplete="current-password"
             aria-label="Password"
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error ? (
+            <p id="login-modal-error" className="text-sm text-destructive" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

@@ -19,7 +19,8 @@ const COPY: Record<
 > = {
   en: {
     title: "A2A protocol",
-    description: "Agent-to-Agent protocol, trust policies, and evidence chain used by GaiaLynk for verified invocations and receipts.",
+    description:
+      "How the platform reaches your agent endpoint: discovery, capabilities, requests, errors. Runtime rules and execution records keep invocations traceable and reviewable.",
     back: "Back to Developers",
     sections: [
       {
@@ -27,16 +28,16 @@ const COPY: Record<
         body: "A2A (Agent-to-Agent) defines how the platform communicates with your Agent endpoint: discovery, capability declaration, request/response format, and error handling. Aligning with this protocol ensures your Agent can be discovered, invoked, and audited correctly.",
       },
       {
-        title: "Trust policies",
-        body: "Trust decisions (allow, allow_limited, need_confirmation, deny) are applied at runtime. Policies consider identity verification, capability claims, reputation, and risk level. High-risk actions may require human-in-the-loop confirmation before execution.",
+        title: "Runtime rules",
+        body: "Trust decisions (allow, allow_limited, need_confirmation, deny) are applied at runtime—engineers call this trust policy. Policies consider identity verification, capability claims, reputation, and risk level. High-risk actions may require human review before execution.",
       },
       {
-        title: "Evidence and receipts",
-        body: "Every invocation can produce a signed receipt linking to the full audit chain. Policy hits, reason codes, and receipt references are available for verification and replay. This enables accountability and compliance.",
+        title: "Execution records",
+        body: "Plain language: each run can leave a record you can review. Technically, signed receipts link to the audit chain; policy hits, reason codes, and references support verification and replay.",
       },
     ],
-    evidenceLink: "A2A L3 evidence (developer view)",
-    evidenceTitle: "See policy hit, reason codes, and receipt digest",
+    evidenceLink: "Developer view: policy hit and record digest",
+    evidenceTitle: "See rule outcomes, reason codes, and record digest",
     ctaQuickstart: "Quick start →",
     ctaDevelopers: "Developers",
     seoTitle: "A2A protocol - GaiaLynk Developers",
@@ -44,7 +45,7 @@ const COPY: Record<
   },
   "zh-Hant": {
     title: "A2A 協議",
-    description: "Agent 間協議、信任策略與證據鏈，GaiaLynk 用於可驗證調用與收據。",
+    description: "平台如何呼叫您的智能體端點：發現、能力、請求、錯誤；運行時規則與執行紀錄使調用可追溯、可供查閱。",
     back: "返回開發者",
     sections: [
       {
@@ -60,8 +61,8 @@ const COPY: Record<
         body: "每次調用可產生關聯完整審計鏈的簽名收據。策略命中、reason codes 與收據引用可供驗證與回放，以支援問責與合規。",
       },
     ],
-    evidenceLink: "A2A L3 證據（開發者視圖）",
-    evidenceTitle: "查看策略命中、reason codes 與收據摘要",
+    evidenceLink: "開發者視圖：規則命中與紀錄摘要",
+    evidenceTitle: "查看規則結果、原因碼與紀錄摘要",
     ctaQuickstart: "快速開始 →",
     ctaDevelopers: "開發者",
     seoTitle: "A2A 協議 - GaiaLynk 開發者",
@@ -69,7 +70,7 @@ const COPY: Record<
   },
   "zh-Hans": {
     title: "A2A 协议",
-    description: "Agent 间协议、信任策略与证据链，GaiaLynk 用于可验证调用与收据。",
+    description: "平台如何调用您的智能体端点：发现、能力、请求、错误；运行时规则与执行记录使调用可追溯、可供查阅。",
     back: "返回开发者",
     sections: [
       {
@@ -85,8 +86,8 @@ const COPY: Record<
         body: "每次调用可产生关联完整审计链的签名收据。策略命中、reason codes 与收据引用可供验证与回放，以支持问责与合规。",
       },
     ],
-    evidenceLink: "A2A L3 证据（开发者视图）",
-    evidenceTitle: "查看策略命中、reason codes 与收据摘要",
+    evidenceLink: "开发者视图：规则命中与记录摘要",
+    evidenceTitle: "查看规则结果、原因码与记录摘要",
     ctaQuickstart: "快速开始 →",
     ctaDevelopers: "开发者",
     seoTitle: "A2A 协议 - GaiaLynk 开发者",

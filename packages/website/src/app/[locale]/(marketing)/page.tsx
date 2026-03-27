@@ -5,13 +5,11 @@ import { HeroBackgroundDeferred } from "@/components/marketing/hero-background-d
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
 import { FeatureShowcaseSection } from "@/components/marketing/feature-showcase-section";
 import { ProductPreviewMockup } from "@/components/marketing/product-preview-mockup";
-import { RoadmapPreviewSection } from "@/components/marketing/roadmap-preview-section";
 import { ValuePropositionSection } from "@/components/marketing/value-proposition-section";
 import { getDictionary } from "@/content/dictionaries";
 import { getDeveloperEcosystem } from "@/content/developer-ecosystem";
 import { getFeatureShowcase } from "@/content/feature-showcase";
 import { getProductMockupCopy } from "@/content/i18n/product-mockup-copy";
-import { getRoadmapPreview } from "@/content/roadmap-preview";
 import type { Locale } from "@/lib/i18n/locales";
 
 export default async function HomePage({
@@ -27,9 +25,8 @@ export default async function HomePage({
     title: home.title,
     subtitle: home.description,
     ctaPrimary: home.primaryCta,
-    ctaSecondary: "Open App →",
+    ctaSecondary: "Publishers & developers",
   };
-  const roadmapPreview = getRoadmapPreview(locale);
   const developerEcosystem = getDeveloperEcosystem(locale);
   const featureShowcase = getFeatureShowcase(locale);
   const mockupCopy = getProductMockupCopy(locale);
@@ -52,18 +49,6 @@ export default async function HomePage({
           <div className="mt-10 flex flex-wrap gap-3">
             <CtaLink
               primary
-              href={`/${locale}/developers`}
-              eventName="cta_click"
-              eventPayload={{
-                locale,
-                page: "home",
-                referrer: "internal",
-                cta_id: "start_building",
-              }}
-            >
-              {hero.ctaPrimary}
-            </CtaLink>
-            <CtaLink
               href={`/${locale}/app`}
               eventName="cta_click"
               eventPayload={{
@@ -71,6 +56,18 @@ export default async function HomePage({
                 page: "home",
                 referrer: "internal",
                 cta_id: "open_app",
+              }}
+            >
+              {hero.ctaPrimary}
+            </CtaLink>
+            <CtaLink
+              href={`/${locale}/developers`}
+              eventName="cta_click"
+              eventPayload={{
+                locale,
+                page: "home",
+                referrer: "internal",
+                cta_id: "start_building",
               }}
             >
               {hero.ctaSecondary}
@@ -112,13 +109,10 @@ export default async function HomePage({
         <HowItWorksSection title={home.howItWorks.title} steps={home.howItWorks.steps} />
       )}
 
-      {/* T-3.5 首页路线图预览区域（第四屏） */}
-      <RoadmapPreviewSection data={roadmapPreview} locale={locale} />
-
       {/* T-3.6 首页开发者生态区域（第五屏） */}
       <DeveloperEcosystemSection data={developerEcosystem} locale={locale} />
 
-      {/* T-3.7 首页收尾 CTA（第六屏）：准备好了吗？+ Open App / Start Building / Book a Demo；不包含 Join Waitlist */}
+      {/* T-3.7 首页收尾 CTA（第六屏）：准备好了吗？+ Open App / Start Building */}
       {home.finalCta && (
         <FinalCtaSection copy={home.finalCta} locale={locale} />
       )}

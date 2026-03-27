@@ -4,6 +4,9 @@ import { useState, useCallback, useEffect } from "react";
 import type { Locale } from "@/lib/i18n/locales";
 import { useIdentity } from "@/lib/identity/context";
 import { getDictionary } from "@/content/dictionaries";
+import { useSpace } from "@/components/product/space-context";
+import { useSpacePermissions } from "@/hooks/use-space-permissions";
+import { getW15RbacUiCopy } from "@/content/i18n/product-experience";
 
 type Authorization = {
   id: string;
@@ -118,6 +121,10 @@ const RISK_LEVELS = ["low", "medium", "high", "critical"] as const;
 
 export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
   const { userId, isAuthenticated } = useIdentity();
+  const { currentSpaceId, myRole, roleLoading } = useSpace();
+  const { mayTriggerConnector } = useSpacePermissions(myRole);
+  const canMutateConnector = roleLoading || mayTriggerConnector;
+  const w15 = getW15RbacUiCopy(locale);
   const dict = getDictionary(locale);
   const authCopy = dict.auth ?? {
     loginRequired: "Sign in to use this feature.",
@@ -267,6 +274,7 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
           risk_level: executeRisk,
           confirmed: executeRisk === "high" || executeRisk === "critical",
           params_summary: {},
+          ...(currentSpaceId ? { space_id: currentSpaceId } : {}),
         }),
       });
       const json = await res.json();
@@ -290,6 +298,14 @@ export function ConnectorsGovernanceDemo({ locale }: { locale: Locale }) {
       <div className="rounded-xl border border-border bg-card p-8 text-center">
         <p className="text-muted-foreground">{authCopy.loginRequired}</p>
         <p className="mt-2 text-sm text-muted-foreground">{authCopy.loginCta}</p>
+      </div>
+    );
+  }
+
+  if (!canMutateConnector) {
+    return (
+      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm leading-relaxed text-foreground">
+        {w15.guestConnectorBanner}
       </div>
     );
   }

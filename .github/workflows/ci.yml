@@ -89,6 +89,27 @@ jobs:
           name: mainline-contract-drift-report
           path: reports/mainline-contract-drift-report.md
 
+  website-next-production-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Next.js production build (Vercel parity)
+        env:
+          NODE_ENV: production
+          MAINLINE_API_URL: https://example.com
+        run: npm run build --prefix packages/website
+
   postgres-integration:
     runs-on: ubuntu-latest
     services:

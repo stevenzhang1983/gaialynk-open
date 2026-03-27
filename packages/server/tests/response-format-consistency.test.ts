@@ -151,6 +151,17 @@ describe("response format consistency", () => {
   it("keeps invocation pending when confirm fails on A2A call", async () => {
     const app = createApp();
 
+    const reg = await app.request("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "resp-fmt-confirm-fail@example.com", password: "password123" }),
+    });
+    expect(reg.status).toBe(201);
+    const { access_token, user } = (await reg.json()).data as {
+      access_token: string;
+      user: { id: string };
+    };
+
     const convRes = await app.request("/api/v1/conversations", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -182,7 +193,7 @@ describe("response format consistency", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        sender_id: "u-confirm-fail",
+        sender_id: user.id,
         text: "run risky task",
       }),
     });
@@ -193,11 +204,13 @@ describe("response format consistency", () => {
     const confirmRes = await app.request(`/api/v1/invocations/${invocationId}/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approver_id: "u-confirm-fail" }),
+      body: JSON.stringify({ approver_id: user.id }),
     });
     expect(confirmRes.status).toBe(502);
 
-    const invocationRes = await app.request(`/api/v1/invocations/${invocationId}`);
+    const invocationRes = await app.request(`/api/v1/invocations/${invocationId}`, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
     expect(invocationRes.status).toBe(200);
     const invocationBody = await invocationRes.json();
     expect(invocationBody.data.status).toBe("pending_confirmation");

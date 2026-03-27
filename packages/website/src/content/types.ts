@@ -28,6 +28,8 @@ export type Dictionary = {
     roadmap?: string;
     pricing?: string;
     openApp?: string;
+    /** W-14：跳过导航直达主内容 */
+    skipToContent?: string;
   };
   home: PageCopy & {
     eyebrow: string;
@@ -36,7 +38,6 @@ export type Dictionary = {
     evidenceDescription: string;
     evidencePoints: [string, string, string];
     secondaryCtas: {
-      demo: string;
       waitlist: string;
     };
     /** T-3.1 首页 Hero 专用文案（三语对等） */
@@ -67,12 +68,11 @@ export type Dictionary = {
         { summary: string; detail: string },
       ];
     };
-    /** T-3.7 首页收尾 CTA：准备好了吗？+ Open App / Start Building / Book a Demo（不含 Join Waitlist） */
+    /** T-3.7 首页收尾 CTA：准备好了吗？+ Open App / Start Building */
     finalCta?: {
       heading: string;
       openApp: string;
       startBuilding: string;
-      bookDemo: string;
     };
     /** T-6.5 首页产品预览区小标题（三语） */
     previewSectionTitle?: string;
@@ -82,13 +82,16 @@ export type Dictionary = {
     privacy: string;
     cookies: string;
     github: string;
-    contact: string;
+    /** W-11 帮助中心 */
+    help?: string;
   };
-  developers: PageCopy;
+  /** 开发者主页：短导语（description）+ 结构化要点（heroHighlights） */
+  developers: PageCopy & {
+    heroHighlights: readonly [string, string, string];
+  };
   trust: PageCopy;
   useCases: PageCopy;
   waitlist: PageCopy;
-  demo: PageCopy;
   docs: PageCopy;
   ask: PageCopy & { demoHeading?: string };
   recovery: PageCopy;

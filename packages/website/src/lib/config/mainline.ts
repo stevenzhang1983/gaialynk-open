@@ -7,3 +7,15 @@ export function getMainlineApiUrl(): string {
   const url = process.env.MAINLINE_API_URL ?? "http://localhost:3000";
   return url.replace(/\/$/, "");
 }
+
+/** WebSocket origin for E-12 realtime (http→ws, https→wss). Server-side only. */
+export function getMainlineWsOrigin(): string {
+  const base = getMainlineApiUrl();
+  if (base.startsWith("https://")) {
+    return `wss://${base.slice("https://".length)}`;
+  }
+  if (base.startsWith("http://")) {
+    return `ws://${base.slice("http://".length)}`;
+  }
+  return `ws://${base}`;
+}

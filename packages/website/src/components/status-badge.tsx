@@ -12,6 +12,7 @@ const STYLE_BY_STATUS: Record<VisionStatus, string> = {
   "Coming Soon": "border-amber-500/40 bg-amber-500/10 text-amber-200",
   Planned: "border-zinc-500/40 bg-zinc-500/10 text-zinc-300",
   Research: "border-violet-500/40 bg-violet-500/10 text-violet-200",
+  Developing: "border-sky-500/40 bg-sky-500/10 text-sky-200",
 };
 
 /** T-6.5：状态文案随 locale 切换；西文站保留小号大写，中文不强制 uppercase 以免排版怪异 */

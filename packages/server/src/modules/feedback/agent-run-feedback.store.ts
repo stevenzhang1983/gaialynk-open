@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
 import { getAskRunByIdAsync } from "../ask/ask.store";
 
+export type FeedbackUsefulness = "helpful" | "not_helpful" | "neutral";
+
 export interface AgentRunFeedback {
   id: string;
   ask_run_id: string;
@@ -12,6 +14,8 @@ export interface AgentRunFeedback {
   meets_expectation: number;
   created_at: string;
   valid_run: boolean;
+  usefulness?: FeedbackUsefulness | null;
+  reason_code?: string | null;
 }
 
 const SCORE_MIN = 1;
@@ -28,6 +32,8 @@ export const submitAgentRunFeedbackAsync = async (input: {
   speed: number;
   stability: number;
   meets_expectation: number;
+  usefulness?: FeedbackUsefulness | null;
+  reason_code?: string | null;
 }): Promise<{ feedback: AgentRunFeedback; accepted: boolean }> => {
   const runRef = await getAskRunByIdAsync(input.ask_run_id);
   const validRun =
@@ -42,6 +48,9 @@ export const submitAgentRunFeedbackAsync = async (input: {
       Math.min(SCORE_MAX, Math.round(input.meets_expectation)),
     ),
   };
+  const usefulness = input.usefulness ?? null;
+  const reasonCode = input.reason_code?.trim() ? input.reason_code.trim() : null;
+
   const feedback: AgentRunFeedback = {
     id: randomUUID(),
     ask_run_id: input.ask_run_id,
@@ -52,12 +61,14 @@ export const submitAgentRunFeedbackAsync = async (input: {
     meets_expectation: clamped.meets_expectation,
     created_at: nowIso(),
     valid_run: validRun,
+    usefulness,
+    reason_code: reasonCode,
   };
   if (isPostgresEnabled()) {
     await query(
       `INSERT INTO agent_run_feedback
-       (id, ask_run_id, agent_id, quality, speed, stability, meets_expectation, created_at, valid_run)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (id, ask_run_id, agent_id, quality, speed, stability, meets_expectation, created_at, valid_run, usefulness, reason_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         feedback.id,
         feedback.ask_run_id,
@@ -68,6 +79,8 @@ export const submitAgentRunFeedbackAsync = async (input: {
         feedback.meets_expectation,
         feedback.created_at,
         validRun,
+        usefulness,
+        reasonCode,
       ],
     );
   } else {
@@ -127,6 +140,33 @@ export const getAgentFeedbackSummaryAsync = async (agentId: string): Promise<{
     meets_expectation_avg: n > 0 ? Number((valid.reduce((a, f) => a + f.meets_expectation, 0) / n).toFixed(2)) : 0,
     abuse_flagged_count: abuseCount,
   };
+};
+
+export const countRecentNotHelpfulWithReasonAsync = async (
+  agentId: string,
+  reasonCode: string,
+  lookbackDays: number,
+): Promise<number> => {
+  const days = Math.min(365, Math.max(1, lookbackDays));
+  if (!isPostgresEnabled()) {
+    const cutoff = Date.now() - days * 86_400_000;
+    return feedbackList.filter(
+      (f) =>
+        f.agent_id === agentId &&
+        f.usefulness === "not_helpful" &&
+        f.reason_code === reasonCode &&
+        Date.parse(f.created_at) >= cutoff,
+    ).length;
+  }
+  const rows = await query<{ n: string }>(
+    `SELECT COUNT(*)::text AS n FROM agent_run_feedback
+     WHERE agent_id = $1
+       AND usefulness = 'not_helpful'
+       AND reason_code = $2
+       AND created_at >= NOW() - ($3 * INTERVAL '1 day')`,
+    [agentId, reasonCode, days],
+  );
+  return Number(rows[0]?.n ?? "0");
 };
 
 export const resetAgentRunFeedbackStore = (): void => {

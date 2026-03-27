@@ -9,6 +9,17 @@ Thanks for your interest in contributing.
 3. Make focused changes with tests.
 4. Open a pull request with clear context.
 
+## Secrets, credentials, and the open-core boundary
+
+This GitHub repository is the **public home** for open-core code. Treat **every push to `main`** as potentially world-readable forever.
+
+- **Do not commit** real `.env` files, database URLs with passwords, JWT secrets, OAuth client **secrets**, signing keys (Apple/Microsoft), or production dumps/logs with PII.
+- Use **placeholders** in examples only (see root `.env.example` and `packages/website/.env.example`).
+- In GitHub Actions, inject sensitive values via **repository Secrets**, never inline in workflow YAML.
+- For deployment, follow the public checklist: [`docs/deploy-railway-vercel-open.md`](./docs/deploy-railway-vercel-open.md) (sanitized). Align with the README section **Open Core Boundary** — managed cloud-only or commercial modules stay out of this repo by design.
+
+If you accidentally pushed a secret, **rotate the credential immediately**; removing the commit is not enough.
+
 ## Where to Start
 
 - `packages/server`: open-core collaboration APIs, trust decisions, review workflows, receipts

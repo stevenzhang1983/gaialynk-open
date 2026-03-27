@@ -25,7 +25,7 @@ const COPY: Record<
     badge: "Coming Soon",
     visionTitle: "Cross-node trusted collaboration",
     visionBody:
-      "Connect distributed nodes while preserving trust boundaries and governance controls. Directory sync, traceable invocation origin per node, and consistent policy enforcement across the network. We are building this next—get notified when it's ready.",
+      "Connect distributed nodes while preserving trust boundaries and governance controls. Agent Hub sync, traceable invocation origin per node, and consistent policy enforcement across the network. We are building this next—get notified when it's ready.",
     notifyTitle: "Get notified",
     notifyPlaceholder: "your@email.com",
     notifySubmit: "Notify me",
@@ -39,7 +39,7 @@ const COPY: Record<
     badge: "即將推出",
     visionTitle: "跨節點可信協作",
     visionBody:
-      "連接分散節點，同時維持信任邊界與治理控制。目錄同步、每次調用可追溯來源節點，以及全網一致的策略執行。我們正在建造中，上線時通知你。",
+      "連接分散節點，同時維持信任邊界與治理控制。智能體中心同步、每次調用可追溯來源節點，以及全網一致的策略執行。我們正在建造中，上線時通知你。",
     notifyTitle: "訂閱通知",
     notifyPlaceholder: "your@email.com",
     notifySubmit: "通知我",
@@ -53,7 +53,7 @@ const COPY: Record<
     badge: "即将推出",
     visionTitle: "跨节点可信协作",
     visionBody:
-      "连接分布式节点，同时保持信任边界与治理控制。目录同步、每次调用可追溯来源节点，以及全网一致的策略执行。我们正在建造中，上线时通知你。",
+      "连接分布式节点，同时保持信任边界与治理控制。智能体中心同步、每次调用可追溯来源节点，以及全网一致的策略执行。我们正在建造中，上线时通知你。",
     notifyTitle: "订阅通知",
     notifyPlaceholder: "your@email.com",
     notifySubmit: "通知我",
@@ -83,7 +83,7 @@ export function NodeCollaborationNotify({ locale }: NodeCollaborationNotifyProps
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        type: "demo",
+        type: "waitlist",
         locale,
         name: "Node collaboration subscriber",
         email: email.trim(),

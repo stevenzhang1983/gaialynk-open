@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 对当前线上 Visit 跑 Lighthouse Performance（与 CTO Directive §9 / T-6.4 对齐）。
+ * 对当前线上 Visit 跑 Lighthouse Performance（T-6.4；W-14 另见 `lighthouse-performance-gate.mjs` 门禁）。
  * 用法：SITE_URL=https://gaialynk-a2a.vercel.app npm run lighthouse:cwv
  * 报告写入仓库根 artifacts/cwv-lighthouse/（默认 gitignore）。
  */

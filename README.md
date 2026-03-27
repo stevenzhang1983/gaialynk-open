@@ -92,6 +92,11 @@ npm run release:gate:website
 
 When the mainline server is not running (e.g. CI), set `RELEASE_GATE_SKIP_API_HEALTH=1` to skip live API health checks so the gate can still pass.
 
+## Deployment (MVP: Railway + Vercel)
+
+Sanitized steps for self-hosters and maintainers (no production secrets): **[docs/deploy-railway-vercel-open.md](./docs/deploy-railway-vercel-open.md)**.  
+Environment variable templates: root [`.env.example`](./.env.example) and [`packages/website/.env.example`](./packages/website/.env.example).
+
 ## Contribution Map
 
 If you want to contribute quickly, start from one of these open-core tracks:

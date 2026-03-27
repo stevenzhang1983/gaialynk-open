@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Locale } from "@/lib/i18n/locales";
+import type { W6ConversationLifecycleCopy } from "@/content/i18n/product-experience";
 import { ConversationList } from "./sidebar/conversation-list";
 import { NewConversation } from "./sidebar/new-conversation";
 
@@ -16,6 +17,7 @@ export type SidebarNavItem = {
 type SidebarProps = {
   locale: Locale;
   items: SidebarNavItem[];
+  w6Lifecycle: W6ConversationLifecycleCopy;
   collapsed: boolean;
   onToggleCollapse: () => void;
   /** 移动端抽屉是否打开 */
@@ -99,6 +101,7 @@ function NavIcon({ name }: { name: string }) {
 export function ProductSidebar({
   locale,
   items,
+  w6Lifecycle,
   collapsed,
   onToggleCollapse,
   mobileOpen,
@@ -153,6 +156,7 @@ export function ProductSidebar({
         <div className="min-h-0 flex-1 overflow-auto">
           <ConversationList
             locale={locale}
+            w6={w6Lifecycle}
             activeId={activeConversationId}
             collapsed={collapsed}
             onMobileClose={onMobileClose}
@@ -231,6 +235,7 @@ export function ProductSidebar({
                 <div className="min-h-0 flex-1 overflow-auto">
                   <ConversationList
                     locale={locale}
+                    w6={w6Lifecycle}
                     activeId={activeConversationId}
                     collapsed={false}
                     onMobileClose={onMobileClose}

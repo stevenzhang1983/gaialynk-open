@@ -23,61 +23,88 @@ const NAV_CARDS: Record<
   en: [
     {
       title: "Quick start",
-      description: "Connect your first Agent in 5 minutes—Provider onboarding, health check, and first test call.",
+      description:
+        "Connect your first agent in minutes. Mirrors the in-app Provider flow: register, health check, test invocation, listing.",
       href: "/developers/quickstart",
       cta: "Read guide →",
     },
     {
       title: "SDK & API",
-      description: "TypeScript, Python, and REST—integrate your Agent with the platform and get verified.",
+      description: "TypeScript, Python, REST. The reference expands over time; Quick start remains the fastest path to a first connected agent.",
       href: "/developers/sdk",
       cta: "View reference →",
     },
     {
       title: "A2A protocol",
-      description: "Agent-to-Agent protocol, trust policies, and evidence chain for audit and receipts.",
+      description:
+        "How the platform reaches your agent endpoint: discovery, capabilities, requests, errors. Runtime rules and execution records keep invocations traceable and reviewable.",
       href: "/developers/protocol",
       cta: "Read protocol →",
+    },
+    {
+      title: "15-minute minimal listing",
+      description:
+        "Shortest path from a working A2A endpoint to a listing: read the contract, echo once, declare concurrency, submit. Matches in-app Provider console checks.",
+      href: "/developers/minimal-onboarding",
+      cta: "Read checklist →",
     },
   ],
   "zh-Hant": [
     {
       title: "快速開始",
-      description: "5 分鐘接入首個 Agent—Provider 入門、健康檢查與首次測試調用。",
+      description:
+        "數分鐘內接上首個智能體；與應用內 Provider 流程一致：註冊、健康檢查、測試調用、上架。",
       href: "/developers/quickstart",
       cta: "閱讀指南 →",
     },
     {
       title: "SDK & API",
-      description: "TypeScript、Python、REST—讓你的 Agent 與平台對接並通過驗證。",
+      description: "TypeScript、Python、REST；詳盡參考持續補齊，接上首個智能體仍以 Quick start 最快。",
       href: "/developers/sdk",
       cta: "查看參考 →",
     },
     {
       title: "A2A 協議",
-      description: "Agent 間協議、信任策略與審計與收據的證據鏈。",
+      description:
+        "平台如何呼叫您的智能體端點：發現、能力、請求、錯誤；運行時規則與執行紀錄使調用可追溯、可供查閱。",
       href: "/developers/protocol",
       cta: "閱讀協議 →",
+    },
+    {
+      title: "15 分鐘最小上架",
+      description:
+        "從可用 A2A 端點到上架之最短路徑：閱讀契約、echo 一次、宣告併發、提交；與應用內 Provider 檢查一致。",
+      href: "/developers/minimal-onboarding",
+      cta: "閱讀清單 →",
     },
   ],
   "zh-Hans": [
     {
       title: "快速开始",
-      description: "5 分钟接入首个 Agent—Provider 入门、健康检查与首次测试调用。",
+      description:
+        "数分钟内接上首个智能体；与应用内 Provider 流程一致：注册、健康检查、测试调用、上架。",
       href: "/developers/quickstart",
       cta: "阅读指南 →",
     },
     {
       title: "SDK & API",
-      description: "TypeScript、Python、REST—让你的 Agent 与平台对接并通过验证。",
+      description: "TypeScript、Python、REST；详尽参考持续补齐，接上首个智能体仍以 Quick start 最快。",
       href: "/developers/sdk",
       cta: "查看参考 →",
     },
     {
       title: "A2A 协议",
-      description: "Agent 间协议、信任策略与审计与收据的证据链。",
+      description:
+        "平台如何调用您的智能体端点：发现、能力、请求、错误；运行时规则与执行记录使调用可追溯、可供查阅。",
       href: "/developers/protocol",
       cta: "阅读协议 →",
+    },
+    {
+      title: "15 分钟最小上架",
+      description:
+        "从可用 A2A 端点到上架的最短路径：阅读契约、echo 一次、声明并发、提交；与应用内 Provider 检查一致。",
+      href: "/developers/minimal-onboarding",
+      cta: "阅读清单 →",
     },
   ],
 };
@@ -97,7 +124,14 @@ export default async function DevelopersPage({
         <h1 className="font-display max-w-4xl text-4xl font-semibold tracking-tight text-foreground">
           {copy.title}
         </h1>
-        <p className="max-w-3xl text-base text-muted-foreground">{copy.description}</p>
+        <div className="max-w-3xl space-y-4">
+          <p className="text-base leading-relaxed text-muted-foreground">{copy.description}</p>
+          <ul className="list-disc space-y-2.5 pl-5 text-sm leading-relaxed text-muted-foreground marker:text-primary/50 sm:text-base">
+            {copy.heroHighlights.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
         <CtaLink
           primary
           href={`/${locale}/developers/quickstart`}
@@ -113,7 +147,7 @@ export default async function DevelopersPage({
         </CtaLink>
       </section>
 
-      <section aria-label="Quick navigation" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="Quick navigation" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <Link
             key={card.href}

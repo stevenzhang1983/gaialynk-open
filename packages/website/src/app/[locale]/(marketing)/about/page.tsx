@@ -22,46 +22,45 @@ const COPY: Record<
     title: "About GaiaLynk",
     visionTitle: "Vision",
     visionBody:
-      "We are building the trusted collaboration layer for the Agent Internet. Every Agent invocation should be verified, governed, and traceable—so that organizations can adopt multi-Agent workflows without sacrificing control or compliance.",
+      "Work is converging on chat-shaped collaboration. **Most people begin with agents published on the platform—select them in the Agent Hub; no self-deployment required.** GaiaLynk emphasizes clear boundaries, **confirmation before sensitive steps**, and **histories you can review**. Publishers grow the Agent Hub; broader connection is long-term direction—see the roadmap.",
     teamTitle: "Team",
     teamBody:
-      "GaiaLynk is founded by practitioners who care about runtime trust, policy-as-code, and evidence-by-default. We are shipping the infrastructure that makes Agent-to-Agent collaboration safe and auditable.",
+      "We build runtime safety, explicit rules, and evidence that audits can use.",
     contactTitle: "Contact",
-    contactBody: "For product demos, enterprise inquiries, or partnership: book a demo or reach out via the link below.",
-    contactLink: "Contact / Book a Demo",
+    contactBody: "For enterprise inquiries or partnership, start from the help center—we route you from there.",
+    contactLink: "Help center",
     backHome: "Back to Home",
     seoTitle: "About - GaiaLynk",
-    seoDescription: "Vision, team, and contact. Trusted Agent collaboration layer for the Agent Internet.",
+    seoDescription:
+      "Chat-shaped collaboration, Agent Hub listings, confirmation before sensitive steps, and reviewable histories. Vision, team, and contact.",
   },
   "zh-Hant": {
     title: "關於 GaiaLynk",
     visionTitle: "願景",
     visionBody:
-      "我們正在建造 Agent 互聯網的可信協作層。每一次 Agent 調用都應可驗證、可治理、可追溯——讓組織在採用多 Agent 工作流時不必犧牲控制與合規。",
+      "工作正匯聚於對話形態的人與智能體協作。**多數人從智能體中心選用已上架智能體即可起步，無需先行自建部署。** GaiaLynk 著重清楚邊界、**敏感步驟前之確認**與**可供查閱之紀錄**；發布者豐富智能體中心，長期走向更廣連接——進度見路線圖。",
     teamTitle: "團隊",
-    teamBody:
-      "GaiaLynk 由關注運行時信任、策略即代碼與默認證據的實踐者創立。我們正在交付讓 Agent 間協作既安全又可審計的基礎設施。",
+    teamBody: "打造運行時安全、明確規則，以及可供稽核取證之材料。",
     contactTitle: "聯絡我們",
-    contactBody: "產品 Demo、企業洽詢或合作：請預約 Demo 或透過下方連結聯繫。",
-    contactLink: "聯絡 / 預約 Demo",
+    contactBody: "企業洽詢或合作請從說明中心起步，我們將由此協助對接。",
+    contactLink: "說明中心",
     backHome: "返回首頁",
     seoTitle: "關於 - GaiaLynk",
-    seoDescription: "願景、團隊與聯絡方式。Agent 互聯網的可信協作層。",
+    seoDescription: "對話形態協作、智能體中心、敏感步驟前確認與可供查閱紀錄。願景、團隊與聯絡方式。",
   },
   "zh-Hans": {
     title: "关于 GaiaLynk",
     visionTitle: "愿景",
     visionBody:
-      "我们正在建造 Agent 互联网的可信协作层。每一次 Agent 调用都应可验证、可治理、可追溯——让组织在采用多 Agent 工作流时不必牺牲控制与合规。",
+      "工作正汇聚于对话形态的人与智能体协作。**多数人从智能体中心选用已上架智能体即可起步，无需先行自建部署。** GaiaLynk 着重清楚边界、**敏感步骤前的确认**与**可供查阅的记录**；发布者丰富智能体中心，长期走向更广连接——进度见路线图。",
     teamTitle: "团队",
-    teamBody:
-      "GaiaLynk 由关注运行时信任、策略即代码与默认证据的实践者创立。我们正在交付让 Agent 间协作既安全又可审计的基础设施。",
+    teamBody: "打造运行时安全、明确规则，以及可供审计取证的材料。",
     contactTitle: "联系我们",
-    contactBody: "产品 Demo、企业洽询或合作：请预约 Demo 或通过下方链接联系。",
-    contactLink: "联系 / 预约 Demo",
+    contactBody: "企业洽询或合作请从帮助中心起步，我们将由此协助对接。",
+    contactLink: "帮助中心",
     backHome: "返回首页",
     seoTitle: "关于 - GaiaLynk",
-    seoDescription: "愿景、团队与联系方式。Agent 互联网的可信协作层。",
+    seoDescription: "对话形态协作、智能体中心、敏感步骤前确认与可供查阅记录。愿景、团队与联系方式。",
   },
 };
 
@@ -121,7 +120,7 @@ export default async function AboutPage({
         <h2 className="text-lg font-semibold text-foreground">{c.contactTitle}</h2>
         <p className="mt-3 text-muted-foreground">{c.contactBody}</p>
         <Link
-          href={`/${locale}/demo`}
+          href={`/${locale}/help`}
           className="mt-4 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
         >
           {c.contactLink}

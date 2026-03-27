@@ -2,15 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import type { ProductUiCopy } from "@/content/i18n/product-experience";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type {
+  ProductUiCopy,
+  W6ConversationLifecycleCopy,
+  W8NotificationCenterCopy,
+} from "@/content/i18n/product-experience";
 import type { Locale } from "@/lib/i18n/locales";
 import { useIdentity } from "@/lib/identity/context";
 import { ContextPanel } from "./context-panel";
 import { ContextPanelContent } from "./context-panel/context-panel-content";
 import { ProductViewTransition } from "./product-view-transition";
 import { ProductSidebar, type SidebarNavItem } from "./sidebar";
+import { SpaceSwitcher } from "./space-switcher";
+import { useSpace } from "./space-context";
+import { useSpacePermissions } from "@/hooks/use-space-permissions";
+import { NotificationCenter } from "./notification-center";
 import { StatusBar } from "./status-bar";
+import { useConversationLifecycle } from "./conversation-lifecycle-context";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -24,10 +33,33 @@ function useIsMobile() {
   return isMobile;
 }
 
+function HeaderConversationSearch({ w6 }: { w6: W6ConversationLifecycleCopy }) {
+  const pathname = usePathname() ?? "";
+  const onChatArea = pathname.includes("/app/chat");
+  const { searchQuery, setSearchQuery } = useConversationLifecycle();
+  if (!onChatArea) {
+    return null;
+  }
+  return (
+    <div className="hidden min-w-0 max-w-[min(20rem,36vw)] flex-1 px-1 md:block lg:max-w-md">
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder={w6.searchPlaceholder}
+        className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+        aria-label={w6.searchPlaceholder}
+      />
+    </div>
+  );
+}
+
 export type ProductShellProps = {
   locale: Locale;
   sidebarItems: SidebarNavItem[];
   productUi: ProductUiCopy;
+  w6Lifecycle: W6ConversationLifecycleCopy;
+  w8Notifications: W8NotificationCenterCopy;
   /** 未登录时“登录”按钮/链接文案 */
   loginLabel?: string;
   /** 设置文案 */
@@ -44,6 +76,8 @@ export function ProductShell({
   locale,
   sidebarItems,
   productUi,
+  w6Lifecycle,
+  w8Notifications,
   loginLabel = "Sign in",
   settingsLabel = "Settings",
   children,
@@ -54,6 +88,15 @@ export function ProductShell({
   const isMobile = useIsMobile();
   const pathname = usePathname() ?? "";
   const { isAuthenticated, email, signOut } = useIdentity();
+  const { currentSpace, myRole, roleLoading } = useSpace();
+  const { showConnectorsNav } = useSpacePermissions(myRole);
+  const gatedSidebarItems = useMemo(
+    () =>
+      sidebarItems.filter(
+        (i) => i.key !== "connectors-governance" || showConnectorsNav || roleLoading,
+      ),
+    [sidebarItems, showConnectorsNav, roleLoading],
+  );
   const loginReturnUrl = pathname ? `${pathname}` : `/${locale}/app`;
   const loginHref = `/${locale}/app/login?return_url=${encodeURIComponent(loginReturnUrl)}`;
 
@@ -63,6 +106,12 @@ export function ProductShell({
 
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-x-hidden bg-background font-sans text-foreground">
+      <a
+        href="#product-main"
+        className="pointer-events-none fixed left-4 top-4 z-[100] -translate-y-[200%] opacity-0 transition-none focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+      >
+        {productUi.skipToMain}
+      </a>
       {/* 顶部导航 */}
       <header className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3">
         <div className="flex items-center gap-3">
@@ -88,6 +137,10 @@ export function ProductShell({
           >
             {productUi.backToMarketing}
           </Link>
+          <div className="min-w-0 flex-1 px-2 sm:max-w-xs sm:flex-none lg:max-w-sm">
+            <SpaceSwitcher />
+          </div>
+          <HeaderConversationSearch w6={w6Lifecycle} />
         </div>
         <div className="flex items-center gap-2">
           {isMobile && (
@@ -104,6 +157,7 @@ export function ProductShell({
           )}
           {isAuthenticated ? (
             <>
+              <NotificationCenter locale={locale} copy={w8Notifications} />
               <span className="max-w-[120px] truncate text-xs text-muted-foreground" title={email ?? undefined}>
                 {email ?? productUi.accountFallback}
               </span>
@@ -141,13 +195,18 @@ export function ProductShell({
       <div className="flex min-h-0 flex-1">
         <ProductSidebar
           locale={locale}
-          items={sidebarItems}
+          items={gatedSidebarItems}
+          w6Lifecycle={w6Lifecycle}
           collapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebar}
           mobileOpen={mobileDrawerOpen}
           onMobileClose={closeMobileDrawer}
         />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main
+          id="product-main"
+          tabIndex={-1}
+          className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
+        >
           <ProductViewTransition>{children}</ProductViewTransition>
         </main>
         <ContextPanel
@@ -179,7 +238,7 @@ export function ProductShell({
               pathname.includes("/app/agents") ? "text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {sidebarItems.find((i) => i.key === "agents")?.label ?? "Agents"}
+            {gatedSidebarItems.find((i) => i.key === "agents")?.label ?? "Agents"}
           </Link>
           <button
             type="button"
@@ -195,6 +254,7 @@ export function ProductShell({
         connectionStatus={productUi.statusDisconnected}
         agentsOnlineLabel={productUi.statusAgentsOnline}
         defaultSpaceLabel={productUi.statusDefaultSpace}
+        currentSpace={currentSpace?.name}
         ariaLabel={productUi.statusBarAria}
         isDemo
         demoLabel={productUi.statusDemo}

@@ -3,6 +3,11 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@gaialynk/shared": ["packages/shared/src/index.ts"],
+      "@gaialynk/shared/*": ["packages/shared/src/*"]
+    },
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,

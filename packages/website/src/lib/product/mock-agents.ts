@@ -1,7 +1,7 @@
 import type { Agent } from "./agent-types";
 
 /**
- * T-4.1 Mock Agent 数据。API 就绪后由 T-5.2 Agent 目录 API 替代。
+ * T-4.1 Mock Agent 数据。API 就绪后由 T-5.2 智能体中心 API 替代。
  */
 export const MOCK_AGENTS: Agent[] = [
   {
@@ -15,6 +15,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Accepts text or document refs; returns summary in specified format (bullet, paragraph, executive). Rate-limited per tenant.",
     historySuccessRate: 96,
     riskLevel: "low",
+    trustBadge: "consumer_ready",
+    maxConcurrent: 2,
+    queueBehavior: "queue",
   },
   {
     id: "agent-2",
@@ -27,6 +30,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Reads repo context and diff; outputs structured review (security, style, logic). Can trigger follow-up actions on approval.",
     historySuccessRate: 91,
     riskLevel: "medium",
+    trustBadge: "high_sensitivity_enhanced",
+    maxConcurrent: 1,
+    queueBehavior: "queue",
   },
   {
     id: "agent-3",
@@ -39,6 +45,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Query over configured data sources; returns answer with citations. No write access to external systems.",
     historySuccessRate: 89,
     riskLevel: "low",
+    trustBadge: "consumer_ready",
+    maxConcurrent: 4,
+    queueBehavior: "fast_fail",
   },
   {
     id: "agent-4",
@@ -51,6 +60,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Evaluates input against policy engine; returns allow/deny plus reason codes. Audit log for every check.",
     historySuccessRate: 99,
     riskLevel: "low",
+    trustBadge: "consumer_ready",
+    maxConcurrent: 1,
+    queueBehavior: "queue",
   },
   {
     id: "agent-5",
@@ -63,6 +75,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Read-only access to specified datasets; exports as CSV/JSON/Excel. Sensitive columns can be redacted by policy.",
     historySuccessRate: 82,
     riskLevel: "medium",
+    trustBadge: "unverified",
+    maxConcurrent: 1,
+    queueBehavior: "queue",
   },
   {
     id: "agent-6",
@@ -75,6 +90,9 @@ export const MOCK_AGENTS: Agent[] = [
     capabilityStatement: "Runs workflow definitions with step-by-step execution. High-risk steps require human confirmation.",
     historySuccessRate: 87,
     riskLevel: "high",
+    trustBadge: "high_sensitivity_enhanced",
+    maxConcurrent: 1,
+    queueBehavior: "queue",
   },
 ];
 

@@ -27,7 +27,7 @@ type AgentDirectoryProviderProps = {
 };
 
 /**
- * T-4.1 提供目录选中 Agent 状态，供主区卡片与右侧详情面板共享。
+ * T-4.1 提供智能体中心（浏览区）选中 Agent 状态，供主区卡片与右侧详情面板共享。
  * 离开 /app/agents 时清空选中。
  */
 export function AgentDirectoryProvider({ children }: AgentDirectoryProviderProps) {

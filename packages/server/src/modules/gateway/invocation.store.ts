@@ -10,13 +10,18 @@ export interface Invocation {
   status: "pending_confirmation" | "processing_confirmation" | "completed";
   created_at: string;
   updated_at: string;
+  /** E-5: resume multi-step orchestration after Trust confirmation */
+  orchestration_run_id?: string | null;
+  orchestration_step_index?: number | null;
 }
 
-interface CreatePendingInvocationInput {
+export interface CreatePendingInvocationInput {
   conversationId: string;
   agentId: string;
   requesterId: string;
   userText: string;
+  orchestrationRunId?: string;
+  orchestrationStepIndex?: number;
 }
 
 interface ListInvocationsQuery {
@@ -41,9 +46,79 @@ export const createPendingInvocation = (input: CreatePendingInvocationInput): In
     status: "pending_confirmation",
     created_at: timestamp,
     updated_at: timestamp,
+    orchestration_run_id: input.orchestrationRunId ?? null,
+    orchestration_step_index: input.orchestrationStepIndex ?? null,
   };
 
   invocations.set(invocation.id, invocation);
+
+  return invocation;
+};
+
+const invocationSelectColumns = `id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text,
+     orchestration_run_id, orchestration_step_index`;
+
+const mapInvocationRow = (row: Invocation): Invocation => ({
+  ...row,
+  orchestration_run_id: row.orchestration_run_id ?? undefined,
+  orchestration_step_index: row.orchestration_step_index ?? undefined,
+});
+
+/**
+ * Straight-through allow path (no pending_confirmation): persist a completed row so
+ * GET /invocations/:id + receipt visibility (E-17) apply. W-18 website receipt page.
+ */
+export const createCompletedInvocationRecordAsync = async (
+  input: CreatePendingInvocationInput,
+): Promise<Invocation> => {
+  if (!isPostgresEnabled()) {
+    const timestamp = new Date().toISOString();
+    const invocation: Invocation = {
+      id: randomUUID(),
+      conversation_id: input.conversationId,
+      agent_id: input.agentId,
+      requester_id: input.requesterId,
+      user_text: input.userText,
+      status: "completed",
+      created_at: timestamp,
+      updated_at: timestamp,
+      orchestration_run_id: input.orchestrationRunId ?? null,
+      orchestration_step_index: input.orchestrationStepIndex ?? null,
+    };
+    invocations.set(invocation.id, invocation);
+    return invocation;
+  }
+
+  const timestamp = new Date().toISOString();
+  const invocation: Invocation = {
+    id: randomUUID(),
+    conversation_id: input.conversationId,
+    agent_id: input.agentId,
+    requester_id: input.requesterId,
+    user_text: input.userText,
+    status: "completed",
+    created_at: timestamp,
+    updated_at: timestamp,
+    orchestration_run_id: input.orchestrationRunId ?? null,
+    orchestration_step_index: input.orchestrationStepIndex ?? null,
+  };
+
+  await query(
+    `INSERT INTO invocations (id, conversation_id, agent_id, requester_id, user_text, status, created_at, updated_at, orchestration_run_id, orchestration_step_index)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
+      invocation.id,
+      invocation.conversation_id,
+      invocation.agent_id,
+      invocation.requester_id,
+      invocation.user_text,
+      invocation.status,
+      invocation.created_at,
+      invocation.updated_at,
+      invocation.orchestration_run_id ?? null,
+      invocation.orchestration_step_index ?? null,
+    ],
+  );
 
   return invocation;
 };
@@ -65,11 +140,13 @@ export const createPendingInvocationAsync = async (
     status: "pending_confirmation",
     created_at: timestamp,
     updated_at: timestamp,
+    orchestration_run_id: input.orchestrationRunId ?? null,
+    orchestration_step_index: input.orchestrationStepIndex ?? null,
   };
 
   await query(
-    `INSERT INTO invocations (id, conversation_id, agent_id, requester_id, user_text, status, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    `INSERT INTO invocations (id, conversation_id, agent_id, requester_id, user_text, status, created_at, updated_at, orchestration_run_id, orchestration_step_index)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       invocation.id,
       invocation.conversation_id,
@@ -79,6 +156,8 @@ export const createPendingInvocationAsync = async (
       invocation.status,
       invocation.created_at,
       invocation.updated_at,
+      invocation.orchestration_run_id ?? null,
+      invocation.orchestration_step_index ?? null,
     ],
   );
 
@@ -99,13 +178,13 @@ export const getInvocationByIdAsync = async (invocationId: string): Promise<Invo
   }
 
   const rows = await query<Invocation>(
-    `SELECT id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text
+    `SELECT ${invocationSelectColumns}
      FROM invocations
      WHERE id = $1`,
     [invocationId],
   );
 
-  return rows[0] ?? null;
+  return rows[0] ? mapInvocationRow(rows[0]) : null;
 };
 
 export const markInvocationCompleted = (invocationId: string): Invocation | null => {
@@ -141,11 +220,11 @@ export const markInvocationCompletedAsync = async (invocationId: string): Promis
     `UPDATE invocations
      SET status = 'completed', updated_at = $2
      WHERE id = $1 AND status IN ('pending_confirmation', 'processing_confirmation')
-     RETURNING id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text`,
+     RETURNING ${invocationSelectColumns}`,
     [invocationId, updatedAt],
   );
 
-  return rows[0] ?? null;
+  return rows[0] ? mapInvocationRow(rows[0]) : null;
 };
 
 export const claimInvocationForProcessing = (invocationId: string): Invocation | null => {
@@ -177,10 +256,10 @@ export const claimInvocationForProcessingAsync = async (invocationId: string): P
     `UPDATE invocations
      SET status = 'processing_confirmation', updated_at = $2
      WHERE id = $1 AND status = 'pending_confirmation'
-     RETURNING id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text`,
+     RETURNING ${invocationSelectColumns}`,
     [invocationId, updatedAt],
   );
-  return rows[0] ?? null;
+  return rows[0] ? mapInvocationRow(rows[0]) : null;
 };
 
 export const rollbackInvocationProcessing = (invocationId: string): Invocation | null => {
@@ -212,10 +291,10 @@ export const rollbackInvocationProcessingAsync = async (invocationId: string): P
     `UPDATE invocations
      SET status = 'pending_confirmation', updated_at = $2
      WHERE id = $1 AND status = 'processing_confirmation'
-     RETURNING id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text`,
+     RETURNING ${invocationSelectColumns}`,
     [invocationId, updatedAt],
   );
-  return rows[0] ?? null;
+  return rows[0] ? mapInvocationRow(rows[0]) : null;
 };
 
 export const resetInvocationStore = (): void => {
@@ -256,12 +335,12 @@ export const listInvocationsAsync = async (queryParams?: ListInvocationsQuery): 
 
   const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
   const rows = await query<Invocation>(
-    `SELECT id, conversation_id, agent_id, requester_id, user_text, status, created_at::text, updated_at::text
+    `SELECT ${invocationSelectColumns}
      FROM invocations
      ${where}
      ORDER BY created_at ASC`,
     values,
   );
 
-  return rows;
+  return rows.map(mapInvocationRow);
 };

@@ -1,15 +1,20 @@
 import type { Locale } from "@/lib/i18n/locales";
 import type { Agent } from "@/lib/product/agent-types";
 
+/** W-9：Consumer 首启 ≤4 屏；hub 合并 S1 可选目标 + S2 二选一 */
 export type ConsumerOnboardingCopy = {
   eyebrow: string;
   title: string;
   skipToApp: string;
   stepProgress: (current: number, total: number) => string;
-  welcome: {
+  hub: {
     heading: string;
     body: string;
-    next: string;
+    goalLabel: string;
+    goalOptional: string;
+    goalPlaceholder: string;
+    startChat: string;
+    browseAgents: string;
   };
   browse: {
     heading: string;
@@ -40,11 +45,8 @@ export type ConsumerOnboardingCopy = {
     routedAgent: string;
     completedAt: string;
     back: string;
-    finish: string;
-  };
-  complete: {
-    heading: string;
-    body: string;
+    doneHeading: string;
+    doneBody: string;
     continueApp: string;
     browseAll: string;
   };
@@ -53,17 +55,21 @@ export type ConsumerOnboardingCopy = {
 const COPY: Record<Locale, ConsumerOnboardingCopy> = {
   en: {
     eyebrow: "Consumer onboarding",
-    title: "Get started",
+    title: "Welcome",
     skipToApp: "Skip to app",
     stepProgress: (c, t) => `Step ${c} of ${t}`,
-    welcome: {
-      heading: "Let Agents work for you",
-      body: "Pick verified Agents, send a task in plain language, and get results with a trust receipt—so you always know what ran and why it was allowed.",
-      next: "Next",
+    hub: {
+      heading: "What would you like to do today?",
+      body: "Optional: jot a one-line goal—we’ll pre-fill your first message. Then start chatting or open the Agent Hub. No OAuth or connectors required.",
+      goalLabel: "Your goal (optional)",
+      goalOptional: "Skip if you prefer",
+      goalPlaceholder: "e.g. Summarize yesterday’s customer feedback",
+      startChat: "Start conversation",
+      browseAgents: "Browse Agent Hub",
     },
     browse: {
-      heading: "Browse recommended Agents",
-      body: "These Agents are verified picks to start with. Select one—you'll send your first message to it next.",
+      heading: "Pick a starter Agent",
+      body: "Choose one of these verified picks—you’ll send your first message on the next screen.",
       recommended: "Recommended",
       reputation: "Reputation",
       back: "Back",
@@ -73,7 +79,7 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
       heading: "Your first message",
       intro: "You're talking to ",
       outro:
-        ". Tap a suggestion or write your own—then run a demo invocation (no real backend required).",
+        ". Tap a suggestion or write your own—then run a quick demo (mock response, no connector needed).",
       placeholder: "Describe what you want the Agent to do…",
       messageAria: "Message to agent",
       back: "Back",
@@ -91,28 +97,29 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
       routedAgent: "Routed Agent",
       completedAt: "Completed at",
       back: "Back",
-      finish: "Finish",
-    },
-    complete: {
-      heading: "You're ready",
-      body: "Open Chat to start real conversations, browse the full Agent directory from the sidebar, and explore tasks and approvals when you need them.",
+      doneHeading: "You're ready for the real app",
+      doneBody: "Continue to Chat to send live messages—still no mandatory connectors.",
       continueApp: "Continue to app",
-      browseAll: "Browse all Agents",
+      browseAll: "Browse full Agent Hub",
     },
   },
   "zh-Hant": {
     eyebrow: "使用者引導",
-    title: "開始使用",
+    title: "歡迎",
     skipToApp: "略過並進入應用",
     stepProgress: (c, t) => `第 ${c} 步，共 ${t} 步`,
-    welcome: {
-      heading: "讓 Agent 為你工作",
-      body: "在此挑選已驗證的 Agent、用自然語言送出任務，並取得附帶信任收據的結果——清楚知道執行了什麼、為何被允許。",
-      next: "下一步",
+    hub: {
+      heading: "你今天想完成什麼？",
+      body: "可選：寫一句目標，我們會預填你的第一則訊息。接著直接開始對話或瀏覽智能體中心。無需 OAuth 或連接器。",
+      goalLabel: "你的目標（可選）",
+      goalOptional: "可不填",
+      goalPlaceholder: "例：整理昨日客戶回饋重點",
+      startChat: "開始對話",
+      browseAgents: "瀏覽智能體中心",
     },
     browse: {
-      heading: "瀏覽推薦 Agent",
-      body: "這些是適合入門的已驗證 Agent。選擇其一——下一步你將對它送出第一則訊息。",
+      heading: "選擇入門 Agent",
+      body: "從下列已驗證推薦擇一——下一步你將對它送出第一則訊息。",
       recommended: "推薦",
       reputation: "信譽",
       back: "返回",
@@ -121,7 +128,7 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
     firstMessage: {
       heading: "你的第一則訊息",
       intro: "你正在與 ",
-      outro: " 對話。可點選建議或自行輸入，再執行示範調用（無需真實後端）。",
+      outro: " 對話。可點選建議或自行輸入，再執行快速示範（Mock，無需連接器）。",
       placeholder: "描述你希望 Agent 做什麼…",
       messageAria: "傳給 Agent 的訊息",
       back: "返回",
@@ -139,28 +146,29 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
       routedAgent: "路由 Agent",
       completedAt: "完成時間",
       back: "返回",
-      finish: "完成",
-    },
-    complete: {
-      heading: "你已準備就緒",
-      body: "打開對話開始真實協作，從側欄瀏覽完整 Agent 目錄，需要時再探索任務與審批。",
+      doneHeading: "可以進入正式體驗了",
+      doneBody: "前往對話即可發送真實訊息——仍無強制連接器要求。",
       continueApp: "進入應用",
-      browseAll: "瀏覽全部 Agent",
+      browseAll: "瀏覽完整智能體中心",
     },
   },
   "zh-Hans": {
     eyebrow: "用户引导",
-    title: "开始使用",
+    title: "欢迎",
     skipToApp: "跳过并进入应用",
     stepProgress: (c, t) => `第 ${c} 步，共 ${t} 步`,
-    welcome: {
-      heading: "让 Agent 为你工作",
-      body: "在此挑选已验证的 Agent、用自然语言发送任务，并取得附带信任收据的结果——清楚知道执行了什么、为何被允许。",
-      next: "下一步",
+    hub: {
+      heading: "你今天想完成什么？",
+      body: "可选：写一句目标，我们会预填你的第一条消息。然后直接开始对话或浏览智能体中心。无需 OAuth 或连接器。",
+      goalLabel: "你的目标（可选）",
+      goalOptional: "可不填",
+      goalPlaceholder: "例：整理昨日客户反馈要点",
+      startChat: "开始对话",
+      browseAgents: "浏览智能体中心",
     },
     browse: {
-      heading: "浏览推荐 Agent",
-      body: "这些是适合入门的已验证 Agent。选择其一——下一步你将向它发送第一条消息。",
+      heading: "选择入门 Agent",
+      body: "从下列已验证推荐中选一个——下一步你将向它发送第一条消息。",
       recommended: "推荐",
       reputation: "信誉",
       back: "返回",
@@ -169,7 +177,7 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
     firstMessage: {
       heading: "你的第一条消息",
       intro: "你正在与 ",
-      outro: " 对话。可点击建议或自行输入，再执行演示调用（无需真实后端）。",
+      outro: " 对话。可点击建议或自行输入，再执行快速演示（Mock，无需连接器）。",
       placeholder: "描述你希望 Agent 做什么…",
       messageAria: "发给 Agent 的消息",
       back: "返回",
@@ -187,13 +195,10 @@ const COPY: Record<Locale, ConsumerOnboardingCopy> = {
       routedAgent: "路由 Agent",
       completedAt: "完成时间",
       back: "返回",
-      finish: "完成",
-    },
-    complete: {
-      heading: "你已准备就绪",
-      body: "打开对话开始真实协作，从侧栏浏览完整 Agent 目录，需要时再探索任务与审批。",
+      doneHeading: "可以进入正式体验了",
+      doneBody: "前往对话即可发送真实消息——仍无强制连接器要求。",
       continueApp: "进入应用",
-      browseAll: "浏览全部 Agent",
+      browseAll: "浏览完整智能体中心",
     },
   },
 };

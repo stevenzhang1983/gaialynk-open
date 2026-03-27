@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isPostgresEnabled, query } from "../../infra/db/client";
+import { notifyAgentLifecycleChangeAsync } from "../notifications/notification-triggers";
 
 export interface AgentCapability {
   name: string;
@@ -7,6 +8,20 @@ export interface AgentCapability {
 }
 
 export type HealthCheckStatus = "ok" | "failed" | "pending";
+
+export type QueueBehavior = "queue" | "fast_fail";
+
+export type MemoryTier = "none" | "session" | "user_isolated";
+
+/** E-15: directory / gateway listing lifecycle (distinct from `status` deprecated/active). */
+export type AgentListingStatus = "listed" | "maintenance" | "delisted";
+
+export interface AgentChangelogEntry {
+  version: string;
+  summary: string;
+  breaking: boolean;
+  created_at: string;
+}
 
 export interface Agent {
   id: string;
@@ -24,6 +39,16 @@ export interface Agent {
   health_check_status?: HealthCheckStatus;
   health_check_at?: string;
   health_check_error?: string;
+  /** E-7: gateway / listing (defaults: 1 concurrent, queue) */
+  max_concurrent?: number;
+  queue_behavior?: QueueBehavior;
+  timeout_ms?: number | null;
+  supports_scheduled?: boolean;
+  memory_tier?: MemoryTier;
+  /** E-15 */
+  current_version?: string;
+  changelog?: AgentChangelogEntry[];
+  listing_status?: AgentListingStatus;
 }
 
 interface RegisterAgentInput {
@@ -48,6 +73,11 @@ export interface RegisterAgentByProviderInput {
 
 const agents = new Map<string, Agent>();
 
+const AGENT_SELECT_COLUMNS = `id, name, description, agent_type, source_url, capabilities, source_origin, node_id, status, created_at::text,
+    owner_id, health_check_status, health_check_at::text, health_check_error,
+    max_concurrent, queue_behavior, timeout_ms, supports_scheduled, memory_tier,
+    current_version, changelog, listing_status`;
+
 type AgentRow = {
   id: string;
   name: string;
@@ -63,9 +93,63 @@ type AgentRow = {
   health_check_status?: HealthCheckStatus;
   health_check_at?: string;
   health_check_error?: string;
+  max_concurrent?: number | string | null;
+  queue_behavior?: string | null;
+  timeout_ms?: number | string | null;
+  supports_scheduled?: boolean | null;
+  memory_tier?: string | null;
+  current_version?: string | null;
+  changelog?: unknown;
+  listing_status?: string | null;
+};
+
+const parseListingStatus = (raw: unknown): AgentListingStatus => {
+  if (raw === "maintenance" || raw === "delisted" || raw === "listed") return raw;
+  return "listed";
+};
+
+export const parseAgentChangelog = (raw: unknown): AgentChangelogEntry[] => {
+  if (raw == null) return [];
+  let arr: unknown[] = [];
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw) as unknown[];
+    } catch {
+      return [];
+    }
+  } else if (Array.isArray(raw)) {
+    arr = raw;
+  } else {
+    return [];
+  }
+  const out: AgentChangelogEntry[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const version = typeof o.version === "string" ? o.version : "";
+    const summary = typeof o.summary === "string" ? o.summary : "";
+    const breaking = Boolean(o.breaking);
+    const created_at =
+      typeof o.created_at === "string" ? o.created_at : new Date().toISOString();
+    if (version && summary) {
+      out.push({ version, summary, breaking, created_at });
+    }
+  }
+  return out;
 };
 
 const normalizeAgentRow = (row: AgentRow): Agent => {
+  const qb = row.queue_behavior === "fast_fail" || row.queue_behavior === "queue" ? row.queue_behavior : "queue";
+  const mt =
+    row.memory_tier === "none" || row.memory_tier === "session" || row.memory_tier === "user_isolated"
+      ? row.memory_tier
+      : "none";
+  const mc =
+    row.max_concurrent != null && row.max_concurrent !== ""
+      ? Number(row.max_concurrent)
+      : undefined;
+  const to =
+    row.timeout_ms != null && row.timeout_ms !== "" ? Number(row.timeout_ms) : undefined;
   return {
     id: row.id,
     name: row.name,
@@ -81,6 +165,17 @@ const normalizeAgentRow = (row: AgentRow): Agent => {
     health_check_status: row.health_check_status ?? undefined,
     health_check_at: row.health_check_at ?? undefined,
     health_check_error: row.health_check_error ?? undefined,
+    max_concurrent: Number.isFinite(mc) && mc! >= 1 ? mc : 1,
+    queue_behavior: qb,
+    timeout_ms: to !== undefined && Number.isFinite(to) ? to : null,
+    supports_scheduled: Boolean(row.supports_scheduled),
+    memory_tier: mt,
+    current_version:
+      typeof row.current_version === "string" && row.current_version.length > 0
+        ? row.current_version
+        : "1.0.0",
+    changelog: parseAgentChangelog(row.changelog),
+    listing_status: parseListingStatus(row.listing_status),
   };
 };
 
@@ -100,6 +195,14 @@ export const registerAgent = (input: RegisterAgentInput): Agent => {
     node_id: input.node_id,
     status: input.status ?? "active",
     created_at: new Date().toISOString(),
+    max_concurrent: 1,
+    queue_behavior: "queue",
+    timeout_ms: null,
+    supports_scheduled: false,
+    memory_tier: "none",
+    current_version: "1.0.0",
+    changelog: [],
+    listing_status: "listed",
   };
 
   agents.set(agent.id, agent);
@@ -123,6 +226,14 @@ export const registerAgentAsync = async (input: RegisterAgentInput): Promise<Age
     node_id: input.node_id,
     status: input.status ?? "active",
     created_at: new Date().toISOString(),
+    max_concurrent: 1,
+    queue_behavior: "queue",
+    timeout_ms: null,
+    supports_scheduled: false,
+    memory_tier: "none",
+    current_version: "1.0.0",
+    changelog: [],
+    listing_status: "listed",
   };
 
   await query(
@@ -173,6 +284,14 @@ export const registerAgentByProviderAsync = async (
     status: "pending_review",
     created_at: new Date().toISOString(),
     owner_id: ownerId,
+    max_concurrent: 1,
+    queue_behavior: "queue",
+    timeout_ms: null,
+    supports_scheduled: false,
+    memory_tier: "none",
+    current_version: "1.0.0",
+    changelog: [],
+    listing_status: "listed",
   };
 
   await query(
@@ -210,8 +329,7 @@ export const getAgentByIdAsync = async (agentId: string): Promise<Agent | null> 
   }
 
   const rows = await query<AgentRow>(
-    `SELECT id, name, description, agent_type, source_url, capabilities, source_origin, node_id, status, created_at::text,
-            owner_id, health_check_status, health_check_at::text, health_check_error
+    `SELECT ${AGENT_SELECT_COLUMNS}
      FROM agents
      WHERE id = $1`,
     [agentId],
@@ -263,8 +381,7 @@ export const listAgentsAsync = async (
     return listAgentsInMemory(all, opts);
   }
 
-  const selectCols = `id, name, description, agent_type, source_url, capabilities, source_origin, node_id, status, created_at::text,
-    owner_id, health_check_status, health_check_at::text, health_check_error`;
+  const selectCols = AGENT_SELECT_COLUMNS;
   const usePagination = opts?.limit != null || opts?.cursor != null;
   const limit = usePagination ? Math.min(Math.max(opts?.limit ?? 50, 1), 100) : 0;
   const sort = opts?.sort ?? "created_at:desc";
@@ -412,8 +529,7 @@ export const upsertAgentFromNodeAsync = async (
   }
 
   const rows = await query<AgentRow>(
-    `SELECT id, name, description, agent_type, source_url, capabilities, source_origin, node_id, status, created_at::text,
-            owner_id, health_check_status, health_check_at::text, health_check_error
+    `SELECT ${AGENT_SELECT_COLUMNS}
      FROM agents
      WHERE node_id = $1 AND source_url = $2
      LIMIT 1`,
@@ -463,8 +579,7 @@ export const listAgentsByOwnerAsync = async (ownerId: string): Promise<Agent[]> 
     return [...agents.values()].filter((a) => (a as Agent & { owner_id?: string }).owner_id === ownerId);
   }
   const rows = await query<AgentRow>(
-    `SELECT id, name, description, agent_type, source_url, capabilities, source_origin, node_id, status, created_at::text,
-            owner_id, health_check_status, health_check_at::text, health_check_error
+    `SELECT ${AGENT_SELECT_COLUMNS}
      FROM agents
      WHERE owner_id = $1
      ORDER BY created_at DESC`,
@@ -508,6 +623,57 @@ export const updateAgentHealthCheckAsync = async (
   );
 };
 
+/** E-7: Provider-owned listing / gateway fields (full snapshot after merge). */
+export interface AgentGatewayListingSnapshot {
+  max_concurrent: number;
+  queue_behavior: QueueBehavior;
+  timeout_ms: number | null;
+  supports_scheduled: boolean;
+  memory_tier: MemoryTier;
+}
+
+export const updateAgentGatewayListingAsync = async (
+  agentId: string,
+  ownerId: string,
+  snapshot: AgentGatewayListingSnapshot,
+): Promise<Agent | null> => {
+  if (!isPostgresEnabled()) {
+    const a = agents.get(agentId);
+    if (!a || (a as Agent & { owner_id?: string }).owner_id !== ownerId) {
+      return null;
+    }
+    a.max_concurrent = snapshot.max_concurrent;
+    a.queue_behavior = snapshot.queue_behavior;
+    a.timeout_ms = snapshot.timeout_ms;
+    a.supports_scheduled = snapshot.supports_scheduled;
+    a.memory_tier = snapshot.memory_tier;
+    return a;
+  }
+
+  const rows = await query<AgentRow>(
+    `UPDATE agents SET
+       max_concurrent = $3,
+       queue_behavior = $4,
+       timeout_ms = $5,
+       supports_scheduled = $6,
+       memory_tier = $7
+     WHERE id = $1::uuid AND owner_id = $2
+     RETURNING ${AGENT_SELECT_COLUMNS}`,
+    [
+      agentId,
+      ownerId,
+      snapshot.max_concurrent,
+      snapshot.queue_behavior,
+      snapshot.timeout_ms,
+      snapshot.supports_scheduled,
+      snapshot.memory_tier,
+    ],
+  );
+
+  const row = rows[0];
+  return row ? normalizeAgentRow(row) : null;
+};
+
 /** Set agent status (T-5.4 submit-review: pending_review → active). */
 export const setAgentStatusAsync = async (
   agentId: string,
@@ -525,3 +691,134 @@ export const setAgentStatusAsync = async (
   );
   return result.length > 0;
 };
+
+/** E-15: current listing gate for gateway (null if agent removed). */
+export const getAgentListingStatusForGatewayAsync = async (
+  agentId: string,
+): Promise<AgentListingStatus | null> => {
+  const a = await getAgentByIdAsync(agentId);
+  if (!a) return null;
+  return a.listing_status ?? "listed";
+};
+
+function notifyListingChange(
+  agentId: string,
+  agentName: string,
+  changeKind: "version_updated" | "listing_maintenance" | "listing_listed" | "listing_delisted",
+  version?: string,
+  summary?: string,
+): void {
+  void notifyAgentLifecycleChangeAsync({
+    agentId,
+    agentName,
+    changeKind,
+    version,
+    summary,
+  }).catch((err: unknown) => {
+    console.error("[agent.store] notifyAgentLifecycleChangeAsync failed", err);
+  });
+}
+
+/** E-15: Provider bumps published version + changelog (owner-only). */
+export const updateAgentVersionByOwnerAsync = async (
+  ownerId: string,
+  agentId: string,
+  input: { version: string; summary: string; breaking?: boolean },
+): Promise<Agent | null> => {
+  const entry: AgentChangelogEntry = {
+    version: input.version,
+    summary: input.summary,
+    breaking: Boolean(input.breaking),
+    created_at: new Date().toISOString(),
+  };
+  if (!isPostgresEnabled()) {
+    const a = agents.get(agentId);
+    if (!a || (a as Agent & { owner_id?: string }).owner_id !== ownerId) {
+      return null;
+    }
+    const changelog = [...(a.changelog ?? []), entry];
+    a.current_version = input.version;
+    a.changelog = changelog;
+    notifyListingChange(a.id, a.name, "version_updated", input.version, input.summary);
+    return { ...a };
+  }
+  const current = await getAgentByIdAsync(agentId);
+  if (!current || current.owner_id !== ownerId) {
+    return null;
+  }
+  const changelog = [...(current.changelog ?? []), entry];
+  const rows = await query<AgentRow>(
+    `UPDATE agents SET current_version = $3, changelog = $4::jsonb
+     WHERE id = $1::uuid AND owner_id = $2
+     RETURNING ${AGENT_SELECT_COLUMNS}`,
+    [agentId, ownerId, input.version, JSON.stringify(changelog)],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const updated = normalizeAgentRow(row);
+  notifyListingChange(updated.id, updated.name, "version_updated", input.version, input.summary);
+  return updated;
+};
+
+/** CTO E-15 alias */
+export const updateAgentVersionAsync = updateAgentVersionByOwnerAsync;
+
+/** E-15: Provider sets listing_status (listed | maintenance | delisted). */
+export const setAgentListingStatusByOwnerAsync = async (
+  ownerId: string,
+  agentId: string,
+  listingStatus: AgentListingStatus,
+): Promise<Agent | null> => {
+  if (!isPostgresEnabled()) {
+    const a = agents.get(agentId);
+    if (!a || (a as Agent & { owner_id?: string }).owner_id !== ownerId) {
+      return null;
+    }
+    const prev = a.listing_status ?? "listed";
+    if (prev === listingStatus) {
+      return { ...a };
+    }
+    a.listing_status = listingStatus;
+    const changeKind =
+      listingStatus === "maintenance"
+        ? "listing_maintenance"
+        : listingStatus === "delisted"
+          ? "listing_delisted"
+          : "listing_listed";
+    notifyListingChange(a.id, a.name, changeKind);
+    return { ...a };
+  }
+  const current = await getAgentByIdAsync(agentId);
+  if (!current || current.owner_id !== ownerId) {
+    return null;
+  }
+  const prev = current.listing_status ?? "listed";
+  if (prev === listingStatus) {
+    return current;
+  }
+  const rows = await query<AgentRow>(
+    `UPDATE agents SET listing_status = $3
+     WHERE id = $1::uuid AND owner_id = $2
+     RETURNING ${AGENT_SELECT_COLUMNS}`,
+    [agentId, ownerId, listingStatus],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const updated = normalizeAgentRow(row);
+  const changeKind =
+    listingStatus === "maintenance"
+      ? "listing_maintenance"
+      : listingStatus === "delisted"
+        ? "listing_delisted"
+        : "listing_listed";
+  notifyListingChange(updated.id, updated.name, changeKind);
+  return updated;
+};
+
+/** CTO E-15: toggle maintenance vs listed (not for delisted — use setAgentListingStatusByOwnerAsync). */
+export const setMaintenanceModeAsync = async (
+  ownerId: string,
+  agentId: string,
+  enabled: boolean,
+): Promise<Agent | null> =>
+  setAgentListingStatusByOwnerAsync(ownerId, agentId, enabled ? "maintenance" : "listed");

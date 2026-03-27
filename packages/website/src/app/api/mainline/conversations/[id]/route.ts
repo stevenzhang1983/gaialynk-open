@@ -23,6 +23,28 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const res = await fetch(`${getMainlineApiUrl()}/api/v1/conversations/${id}`, {
+      method: "PATCH",
+      headers: buildMainlineActorHeaders(request, { includeJsonContentType: true }),
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(data, { status: res.status });
+  } catch {
+    return NextResponse.json(
+      { error: { code: "mainline_unreachable", message: "Mainline API unreachable" } },
+      { status: 502 },
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

@@ -10,6 +10,7 @@ import {
   verifyPassword,
   type UserRole,
 } from "./user.store";
+import { ensureDefaultPersonalSpaceAsync, ensureUserHasPersonalSpaceAsync } from "../spaces/space.store";
 import {
   signAccessToken,
   verifyAccessToken,
@@ -19,6 +20,7 @@ import {
 
 export const AUTH_USER_CONTEXT_KEY = "auth_user";
 
+/** V1.3 E-1: no registration-time role step; optional role kept for API backward compatibility. */
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(256),
@@ -79,9 +81,14 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
       return c.json({ error: { code: "email_taken", message: "Email already registered" } }, 409);
     }
     const user = await createUserAsync({ email, password, role });
-    const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-    const { token: refreshToken, expiresAt } = await createRefreshTokenAsync(
-      user.id,
+    await ensureDefaultPersonalSpaceAsync(user.id);
+    const userWithSpace = await getUserByIdAsync(user.id);
+    if (!userWithSpace) {
+      return c.json({ error: { code: "user_not_found", message: "User not found after registration" } }, 500);
+    }
+    const accessToken = signAccessToken({ sub: userWithSpace.id, email: userWithSpace.email, role: userWithSpace.role });
+    const { token: refreshToken } = await createRefreshTokenAsync(
+      userWithSpace.id,
       getRefreshTokenTtlSeconds(),
     );
     return c.json(
@@ -90,7 +97,12 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
           access_token: accessToken,
           refresh_token: refreshToken,
           expires_in: getAccessTokenTtlSeconds(),
-          user: { id: user.id, email: user.email, role: user.role },
+          user: {
+            id: userWithSpace.id,
+            email: userWithSpace.email,
+            role: userWithSpace.role,
+            default_space_id: userWithSpace.default_space_id ?? null,
+          },
         },
       },
       201,
@@ -116,14 +128,22 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
     }
     const user = await getUserByIdAsync(userWithPassword.id);
     if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);
-    const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-    const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
+    await ensureUserHasPersonalSpaceAsync(user.id);
+    const userResolved = await getUserByIdAsync(user.id);
+    if (!userResolved) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);
+    const accessToken = signAccessToken({ sub: userResolved.id, email: userResolved.email, role: userResolved.role });
+    const { token: refreshToken } = await createRefreshTokenAsync(userResolved.id, getRefreshTokenTtlSeconds());
     return c.json({
       data: {
         access_token: accessToken,
         refresh_token: refreshToken,
         expires_in: getAccessTokenTtlSeconds(),
-        user: { id: user.id, email: user.email, role: user.role },
+        user: {
+          id: userResolved.id,
+          email: userResolved.email,
+          role: userResolved.role,
+          default_space_id: userResolved.default_space_id ?? null,
+        },
       },
     });
   });
@@ -139,14 +159,22 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
     }
     const user = await getUserByIdAsync(userId);
     if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 401);
-    const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
-    const { token: refreshToken } = await createRefreshTokenAsync(user.id, getRefreshTokenTtlSeconds());
+    await ensureUserHasPersonalSpaceAsync(user.id);
+    const userResolved = await getUserByIdAsync(user.id);
+    if (!userResolved) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 401);
+    const accessToken = signAccessToken({ sub: userResolved.id, email: userResolved.email, role: userResolved.role });
+    const { token: refreshToken } = await createRefreshTokenAsync(userResolved.id, getRefreshTokenTtlSeconds());
     return c.json({
       data: {
         access_token: accessToken,
         refresh_token: refreshToken,
         expires_in: getAccessTokenTtlSeconds(),
-        user: { id: user.id, email: user.email, role: user.role },
+        user: {
+          id: userResolved.id,
+          email: userResolved.email,
+          role: userResolved.role,
+          default_space_id: userResolved.default_space_id ?? null,
+        },
       },
     });
   });
@@ -158,11 +186,15 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
     if (!auth) return c.json({ error: { code: "unauthorized", message: "Not authenticated" } }, 401);
     const user = await getUserByIdAsync(auth.userId);
     if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 404);
+    await ensureUserHasPersonalSpaceAsync(user.id);
+    const fresh = await getUserByIdAsync(user.id);
+    if (!fresh) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 404);
     return c.json({
       data: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
+        id: fresh.id,
+        email: fresh.email,
+        role: fresh.role,
+        default_space_id: fresh.default_space_id ?? null,
       },
     });
   });
@@ -183,7 +215,8 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
 
   app.get("/api/v1/auth/oauth/:provider", async (c) => {
     const provider = c.req.param("provider").toLowerCase();
-    const callbackUrl = c.req.query("callback_url")?.trim() || "";
+    const defaultWebCallback = process.env.OAUTH_WEBAPP_CALLBACK_URL?.trim() ?? "";
+    const callbackUrl = c.req.query("callback_url")?.trim() || defaultWebCallback;
     const returnUrl = c.req.query("return_url")?.trim() || "/";
     const statePayload = JSON.stringify({ nonce: crypto.randomUUID(), callback_url: callbackUrl, return_url: returnUrl });
     const state = Buffer.from(statePayload).toString("base64url");
@@ -232,12 +265,14 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
       /* state decode failed — fall through, will return JSON if no callback_url */
     }
 
+    const defaultWebCallback = process.env.OAUTH_WEBAPP_CALLBACK_URL?.trim() ?? "";
     const redirectBase = process.env.OAUTH_REDIRECT_BASE?.trim() || "http://localhost:3000";
 
     const buildRedirectOrJson = (accessToken: string, refreshToken: string) => {
-      if (callbackUrl) {
+      const landing = (callbackUrl || defaultWebCallback).trim();
+      if (landing) {
         const fragment = `access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&return_url=${encodeURIComponent(returnUrl)}`;
-        return c.redirect(`${callbackUrl}#${fragment}`, 302);
+        return c.redirect(`${landing}#${fragment}`, 302);
       }
       return c.json({
         data: {
@@ -251,13 +286,16 @@ export function registerAuthRoutes(app: import("hono").Hono): void {
     const issueTokens = async (email: string) => {
       let userWithPassword = await getUserByEmailAsync(email);
       if (!userWithPassword) {
-        const newUser = await createUserAsync({
+        await createUserAsync({
           email,
           password: crypto.randomUUID() + crypto.randomUUID(),
           role: "consumer",
         });
         userWithPassword = await getUserByEmailAsync(email);
         if (!userWithPassword) return c.json({ error: { code: "user_creation_failed", message: "Failed to create user" } }, 500);
+        await ensureDefaultPersonalSpaceAsync(userWithPassword.id);
+      } else {
+        await ensureUserHasPersonalSpaceAsync(userWithPassword.id);
       }
       const user = await getUserByIdAsync(userWithPassword.id);
       if (!user) return c.json({ error: { code: "user_not_found", message: "User not found" } }, 500);

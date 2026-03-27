@@ -6,7 +6,7 @@ import type { Locale } from "@/lib/i18n/locales";
 import type { Agent } from "./agent-types";
 import { MOCK_AGENTS } from "./mock-agents";
 
-/** T-4.7 引导中「推荐 Agent」固定为 Mock 目录中的若干 id（与 MOCK_AGENTS 对齐）。 */
+/** T-4.7 引导中「推荐 Agent」固定为 Mock 智能体中心中的若干 id（与 MOCK_AGENTS 对齐）。 */
 export const CONSUMER_ONBOARDING_RECOMMENDED_AGENT_IDS = ["agent-1", "agent-3", "agent-2"] as const;
 
 export function getRecommendedAgentsForOnboarding(): Agent[] {

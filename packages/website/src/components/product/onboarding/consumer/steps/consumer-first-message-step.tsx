@@ -28,8 +28,8 @@ export function ConsumerFirstMessageStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">{copy.heading}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">{copy.heading}</h2>
+        <p className="mt-2 max-w-[65ch] text-base leading-relaxed text-muted-foreground">
           {copy.intro}
           <span className="font-medium text-foreground">{agent.name}</span>
           {copy.outro}

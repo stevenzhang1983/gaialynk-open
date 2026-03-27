@@ -13,18 +13,19 @@ const ROUTES = [
   "/developers/quickstart",
   "/developers/sdk",
   "/developers/protocol",
+  "/developers/minimal-onboarding",
   "/topology",
   "/trust",
   "/use-cases",
-  "/use-cases/enterprise-governance",
   "/pricing",
   "/about",
-  "/demo",
   "/node-collaboration",
   "/analytics",
   "/settings",
   "/privacy",
   "/cookies",
+  "/help",
+  "/roadmap",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

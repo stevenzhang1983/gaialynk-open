@@ -1,3 +1,5 @@
+import { recordQuotaWarningWithHourlyDedupAsync } from "../notifications/notification-triggers";
+
 interface ConsumeQuotaInput {
   actorId: string;
   feature: string;
@@ -52,9 +54,43 @@ export const consumeQuotaAsync = async (input: ConsumeQuotaInput): Promise<Quota
     return { ...status, allowed: false };
   }
 
+  const beforeRatio = status.limit > 0 ? status.used / status.limit : 0;
   const key = buildQuotaKey(input.actorId, input.feature);
   quotaByActorFeature.set(key, { used: status.used + input.units });
-  return getQuotaStatusAsync(input.actorId, input.feature);
+  const after = await getQuotaStatusAsync(input.actorId, input.feature);
+  const afterRatio = after.limit > 0 ? after.used / after.limit : 0;
+  const usageLink = `/account/usage?feature=${encodeURIComponent(input.feature)}`;
+  if (after.limit > 0 && afterRatio >= 0.8 && beforeRatio < 0.8) {
+    await recordQuotaWarningWithHourlyDedupAsync({
+      userId: input.actorId,
+      feature: input.feature,
+      threshold: "80",
+      eventType: "quota.threshold_80",
+      deepLink: usageLink,
+      payload: {
+        feature: input.feature,
+        threshold: "80",
+        used: after.used,
+        limit: after.limit,
+      },
+    });
+  }
+  if (after.limit > 0 && after.remaining === 0 && status.remaining > 0) {
+    await recordQuotaWarningWithHourlyDedupAsync({
+      userId: input.actorId,
+      feature: input.feature,
+      threshold: "100",
+      eventType: "quota.threshold_100",
+      deepLink: usageLink,
+      payload: {
+        feature: input.feature,
+        threshold: "100",
+        used: after.used,
+        limit: after.limit,
+      },
+    });
+  }
+  return after;
 };
 
 export const resetQuotaStore = (): void => {
